@@ -2,6 +2,7 @@ import math
 import numpy as np
 
 
+
 def nearest_odd_root(d: int) -> int:
     """
     Computes the nearest odd s
@@ -34,28 +35,33 @@ def nearest_odd_root(d: int) -> int:
 
 def pad(feature_vector: np.ndarray, k: int, mode='zeros') -> None:
     """
-    Pads the feature vector INPLACE
+    Pads the feature vector.
     :param feature_vector:
     :param k: 
     :param method: Method using for the padding:
                    'random' - 
                    'zeros' - 
+    
+    :return: The feature vector after it has been padded to length k^2
     """
     if mode != 'zeros':
         raise NotImplementedError
     
     # Get how much should pad
-    pad_amount = math.pow(k, 2) - len(feature_vector)
+    pad_amount = int(math.pow(k, 2) - len(feature_vector))
+
+    assert pad_amount >= 0, "k^2 < dim !"
+
     
     if pad_amount % 2 == 0:
         # pad equally on both sides
-        np.pad(feature_vector, (pad_amount,), 'constant', constant_values=(0,0))
+        return np.pad(feature_vector, (int(pad_amount/2),), 'constant', constant_values=(0,0))
     
     else:
         # pad odd number of pix.
-        np.pad(feature_vector, (pad_amount/2 + 0.5, pad_amount/2 - 0.5), 'constant', constant_values=(0,0))
+        return np.pad(feature_vector, (int(pad_amount/2 + 0.5), int(pad_amount/2 - 0.5)), 'constant', constant_values=(0,0))
 
-    
+
 
     
 

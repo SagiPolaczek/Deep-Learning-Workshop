@@ -10,13 +10,24 @@ train_params = {'trim_or_pad_mode':'only_pad',
 
 def tac_algorithm(training_set, validation_set, base_image):
     """
+    :param training_set:
+    :param validation_set:
+    :param base_image:
 
     """
     dim = len(training_set[0])
     nearest_odd = utils.nearest_odd_root(dim)
     op = trim_or_pad(training_set, dim, nearest_odd, mode='only_pad')
 
+    # training phase:
+    # convert all the feature vectors into kernels
+    # apply each kernel on the base image
+    # train a cnn with that
 
+    # validation phase:
+    # convert all the feature vectors into kernels
+    # apply each kernel on the base image
+    # evaluate
     
     pass
 
@@ -36,7 +47,8 @@ def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: s
     if op == 'trim':
         fixed_vector = utils.trim(feature_vector, nearest_odd, train_params['trim_mode'])
     
-
+    # now the vector with the right size (k^2)
+    # should we convert it to a (k x k) kernel? (img/tensor etc. not a vector)
 
     
 
@@ -70,11 +82,3 @@ def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> str
     else:
         # TODO: raise error for using unsupported mode
         pass
-
-def get_vector_feature_dimension(training_set):
-    """
-    :param training_set:
-    :return:
-    """
-    pass
-
