@@ -4,7 +4,9 @@ from collections.abc import Callable
 
 import utils
 
-
+train_params = {'trim_or_pad_mode':'only_pad',
+                'pad_mode':'zeros',
+                'trim_mode':'random'}
 
 def tac_algorithm(training_set, validation_set, base_image):
     """
@@ -14,10 +16,11 @@ def tac_algorithm(training_set, validation_set, base_image):
     nearest_odd = utils.nearest_odd_root(dim)
     op = trim_or_pad(training_set, dim, nearest_odd, mode='only_pad')
 
+
     
     pass
 
-def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: Callable[[], np.ndarray]) -> np.ndarray:
+def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: str) -> np.ndarray:
     """
     Converts a feature vector into a kerenl with a size (k x k) when k := nearest_odd using the supplied op.
 
@@ -28,8 +31,11 @@ def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: C
     """
     
     mean_value = np.mean(feature_vector)
-    fixed_vector = op(feature_vector, nearest_odd, method='zeros')
-
+    if op == 'pad':
+        fixed_vector = utils.pad(feature_vector, nearest_odd, train_params['pad_mode'])
+    if op == 'trim':
+        fixed_vector = utils.trim(feature_vector, nearest_odd, train_params['trim_mode'])
+    
 
 
     
@@ -38,7 +44,7 @@ def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: C
     pass
 
 
-def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> Callable[[], numpy.ndarray]:
+def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> str:
     """
     Decides if one should trim or pad the dataset's feature vector.
 
@@ -53,10 +59,10 @@ def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> Cal
     :return: The desired operation between 'trim' or 'pad' from the utils.
     """
     if mode == 'only_trim':
-        return utils.trim
+        return 'trim'
 
     if mode == 'only_pad':
-        return utils.pad
+        return 'pad'
     
     if mode == 'default':
         raise NotImplementedError

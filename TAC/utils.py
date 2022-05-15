@@ -32,21 +32,34 @@ def nearest_odd_root(d: int) -> int:
             return closet_int_from_above + 1
 
 
-def pad(feature_vector: np.ndarray, k: int, method='random'):
+def pad(feature_vector: np.ndarray, k: int, mode='zeros') -> None:
     """
-    Pads the feature vector
+    Pads the feature vector INPLACE
     :param feature_vector:
-    :param k:
+    :param k: 
     :param method: Method using for the padding:
                    'random' - 
                    'zeros' - 
     """
-
-    pass
+    if mode != 'zeros':
+        raise NotImplementedError
+    
+    # Get how much should pad
+    pad_amount = math.pow(k, 2) - len(feature_vector)
+    
+    if pad_amount % 2 == 0:
+        # pad equally on both sides
+        np.pad(feature_vector, (pad_amount,), 'constant', constant_values=(0,0))
+    
+    else:
+        # pad odd number of pix.
+        np.pad(feature_vector, (pad_amount/2 + 0.5, pad_amount/2 - 0.5), 'constant', constant_values=(0,0))
 
     
 
-def trim(feature_vector: np.ndarray, k: int, method='random'):
+    
+
+def trim(feature_vector: np.ndarray, k: int, mode='random'):
     """
     Trim the feature_vector so 
     """
