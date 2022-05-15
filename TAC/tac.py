@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import torch
 from collections.abc import Callable
 
@@ -10,18 +10,28 @@ def tac_algorithm(training_set, validation_set, base_image):
     """
 
     """
-    
+    dim = len(training_set[0])
+    nearest_odd = utils.nearest_odd_root(dim)
+    op = trim_or_pad(training_set, dim, nearest_odd, mode='only_pad')
 
+    
     pass
 
-def feature_vector_to_kernel(feature_vector: numpy.ndarray):
+def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: Callable[[], np.ndarray]) -> np.ndarray:
     """
+    Converts a feature vector into a kerenl with a size (k x k) when k := nearest_odd using the supplied op.
 
+    :param feature_vector:
+    :param nearest_odd:
+    :param od:
+    :return: The resulted kernel.
     """
-    dim = len(feature_vector)
-    mean_value = numpy.mean(feature_vector)
-    nearest_odd = utils.nearest_odd_root(dim)
-    op = trim_or_pad()
+    
+    mean_value = np.mean(feature_vector)
+    fixed_vector = op(feature_vector, nearest_odd, method='zeros')
+
+
+
     
 
 
@@ -48,9 +58,17 @@ def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> Cal
     if mode == 'only_pad':
         return utils.pad
     
+    if mode == 'default':
+        raise NotImplementedError
+    
+    else:
+        # TODO: raise error for using unsupported mode
+        pass
 
-def get_feature_dimension(training_set):
+def get_vector_feature_dimension(training_set):
     """
+    :param training_set:
+    :return:
     """
     pass
 

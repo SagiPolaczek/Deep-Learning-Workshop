@@ -1,5 +1,5 @@
 import math
-import numpy
+import numpy as np
 
 
 def nearest_odd_root(d: int) -> int:
@@ -32,14 +32,21 @@ def nearest_odd_root(d: int) -> int:
             return closet_int_from_above + 1
 
 
-def pad(feature_vector: numpy.ndarray, k: int, method='random'):
+def pad(feature_vector: np.ndarray, k: int, method='random'):
     """
     Pads the feature vector
-    Methods: random noise, zeros
+    :param feature_vector:
+    :param k:
+    :param method: Method using for the padding:
+                   'random' - 
+                   'zeros' - 
     """
+
     pass
 
-def trim(feature_vector: numpy.ndarray, k: int, method='random'):
+    
+
+def trim(feature_vector: np.ndarray, k: int, method='random'):
     """
     Trim the feature_vector so 
     """
