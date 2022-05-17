@@ -17,7 +17,7 @@ def tac_algorithm(training_set, validation_set, base_image):
     """
     dim = len(training_set[0])
     nearest_odd = utils.nearest_odd_root(dim)
-    op = trim_or_pad(training_set, dim, nearest_odd, mode='only_pad')
+    op = trim_or_pad(training_set, dim, nearest_odd, mode=train_params['trim_or_pad_mode'])
 
     # training phase:
     # convert all the feature vectors into kernels

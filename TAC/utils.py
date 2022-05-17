@@ -5,10 +5,10 @@ import numpy as np
 
 def nearest_odd_root(d: int) -> int:
     """
-    Computes the nearest odd s
+    Computes the nearest odd s TODO
 
     TODO: make the code more clean, return sqrt_d + ((sqrt + 1) % 2) or something similar
-
+    :param d:
     :return: The nearest odd root from above. for example:
              For d = 25 it will return 5.
              For d = 26 it will return 7.
