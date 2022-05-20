@@ -5,7 +5,7 @@ import numpy as np
 
 def nearest_odd_root(d: int) -> int:
     """
-    Computes the nearest odd s TODO
+    Computes the nearest odd root to 'd' from above (rounded up).
 
     TODO: make the code more clean, return sqrt_d + ((sqrt + 1) % 2) or something similar
     :param d:
@@ -35,7 +35,7 @@ def nearest_odd_root(d: int) -> int:
 
 def pad(feature_vector: np.ndarray, k: int, mode='zeros') -> None:
     """
-    Pads the feature vector.
+    Pads the feature vector so that after padding it's dimension will be k^2.
     :param feature_vector:
     :param k: 
     :param method: Method using for the padding:
