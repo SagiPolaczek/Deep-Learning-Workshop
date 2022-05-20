@@ -14,7 +14,7 @@ class TestUtils(unittest.TestCase):
         assert np.array_equal(tac.utils.pad([1], 3), [0, 0, 0, 0, 1, 0, 0, 0, 0])
         assert np.array_equal(tac.utils.pad([1, 2, 3, 4, 5], 3, mode='zeros'), [0, 0, 1, 2, 3, 4, 5, 0, 0])
 
-    def test_nearest_odd(self):
+    def test_nearest_odd_root(self):
         """
         Test nearest_odd function.
         """
