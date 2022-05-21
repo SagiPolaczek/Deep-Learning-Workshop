@@ -20,8 +20,9 @@ def tac_algorithm(training_set, validation_set, base_image):
     op = trim_or_pad(training_set, dim, nearest_odd, mode=train_params['trim_or_pad_mode'])
 
     # training phase:
-    # convert all the feature vectors into kernels
-    # apply each kernel on the base image
+    # convert all the feature vectors into kernels -> convertion should be in torch.nn.Dataset
+    # apply each kernel on the base image -> also this in the same pipeline
+    # -> data pipeline with two of the above. (Dataset, DataLoader)
     # train a cnn with that
 
     # validation phase:
