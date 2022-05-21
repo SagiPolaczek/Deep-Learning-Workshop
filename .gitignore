@@ -133,3 +133,6 @@ dmypy.json
 
 # Project files
 relevant_tutorial/nn_tutorial.ipynb 
+
+# mac staff
+.DS_Store
