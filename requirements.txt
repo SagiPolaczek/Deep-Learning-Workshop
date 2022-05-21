@@ -1,3 +1,4 @@
 pytorch
 numpy
-unittest
+pandas
+scipy.stats
