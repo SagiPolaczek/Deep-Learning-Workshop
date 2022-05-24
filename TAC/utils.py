@@ -68,5 +68,8 @@ def pad(feature_vector: np.ndarray, k: int, mode='zeros') -> None:
 def trim(feature_vector: np.ndarray, k: int, mode='random'):
     """
     Trim the feature_vector so 
+
+
+    TODO: mode - smallest variance
     """
     pass
