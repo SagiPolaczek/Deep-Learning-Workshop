@@ -1,4 +1,5 @@
 import math
+from typing import Optional, List
 import numpy as np
 
 
@@ -65,11 +66,11 @@ def pad(feature_vector: np.ndarray, k: int, mode='zeros') -> None:
 
     
 
-def trim(feature_vector: np.ndarray, k: int, mode='random'):
+def trim(feature_vector: np.ndarray, k: int, mode='random', columns_to_trim: Optional[List[int]]=None) -> np.ndarray:
     """
     Trim the feature_vector so 
 
-
     TODO: mode - smallest variance
     """
+    
     pass

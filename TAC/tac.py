@@ -1,12 +1,13 @@
 import numpy as np
 import torch
 from collections.abc import Callable
+from typing import Optional, List
 
 import utils
 
 train_params = {'trim_or_pad_mode':'only_pad',
                 'pad_mode':'zeros',
-                'trim_mode':'random'}
+                'trim_mode':'fixed'}
 
 def tac_algorithm(training_set, validation_set, base_image):
     """
@@ -16,8 +17,8 @@ def tac_algorithm(training_set, validation_set, base_image):
 
     """
     dim = len(training_set[0])
-    nearest_odd = utils.nearest_odd_root(dim)
-    op = trim_or_pad(training_set, dim, nearest_odd, mode=train_params['trim_or_pad_mode'])
+    nearest_odd_root = utils.nearest_odd_root(dim)
+    op = trim_or_pad(training_set, dim, nearest_odd_root, mode=train_params['trim_or_pad_mode'])
 
     # training phase:
     # convert all the feature vectors into kernels -> convertion should be in torch.nn.Dataset
@@ -32,7 +33,7 @@ def tac_algorithm(training_set, validation_set, base_image):
     
     pass
 
-def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: str) -> np.ndarray:
+def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: str, columns_to_trim: Optional[List[int]]=None) -> np.ndarray:
     """
     Converts a feature vector into a kerenl with a size (k x k) when k := nearest_odd using the supplied op.
 
@@ -41,18 +42,18 @@ def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: s
     :param od:
     :return: The resulted kernel.
     """
-    
+
+    assert op in ['trim', 'pad'], f"op should be 'trim' or 'pad'. got: {op}"
+
     mean_value = np.mean(feature_vector)
+
     if op == 'pad':
-        fixed_vector = utils.pad(feature_vector, nearest_odd, train_params['pad_mode'])
+        feature_vector = utils.pad(feature_vector, nearest_odd, train_params['pad_mode'])
     if op == 'trim':
-        fixed_vector = utils.trim(feature_vector, nearest_odd, train_params['trim_mode'])
+        feature_vector = utils.trim(feature_vector, nearest_odd, train_params['trim_mode'])
     
     # now the vector with the right size (k^2)
     # should we convert it to a (k x k) kernel? (img/tensor etc. not a vector)
-
-    
-
 
     pass
 
