@@ -33,7 +33,7 @@ def tac_algorithm(training_set, validation_set, base_image):
     
     pass
 
-def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: str, columns_to_trim: Optional[List[int]]=None) -> np.ndarray:
+def feature_vector_to_kernel(features_vector: np.ndarray) -> np.ndarray:
     """
     Converts a feature vector into a kerenl with a size (k x k) when k := nearest_odd using the supplied op.
 
@@ -43,14 +43,14 @@ def feature_vector_to_kernel(feature_vector: np.ndarray, nearest_odd: int, op: s
     :return: The resulted kernel.
     """
 
-    assert op in ['trim', 'pad'], f"op should be 'trim' or 'pad'. got: {op}"
+    # assert op in ['trim', 'pad'], f"op should be 'trim' or 'pad'. got: {op}"
 
-    mean_value = np.mean(feature_vector)
+    # mean_value = np.mean(features_vector)
 
-    if op == 'pad':
-        feature_vector = utils.pad(feature_vector, nearest_odd, train_params['pad_mode'])
-    if op == 'trim':
-        feature_vector = utils.trim(feature_vector, nearest_odd, train_params['trim_mode'])
+    # if op == 'pad':
+    #     feature_vector = utils.pad(features_vector, nearest_odd, train_params['pad_mode'])
+    # if op == 'trim':
+    #     feature_vector = utils.trim(features_vector, nearest_odd, train_params['trim_mode'])
     
     # now the vector with the right size (k^2)
     # should we convert it to a (k x k) kernel? (img/tensor etc. not a vector)

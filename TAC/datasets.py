@@ -7,6 +7,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms
 import pytorch_lightning as pl
 import pandas as pd
+import numpy as np
 
 import tac.tac as tac
 
@@ -44,15 +45,20 @@ class SchoolDataset(Dataset):
         """
         # Read the 'index' feature vector
         df = pd.read_csv(self._file_path)
-        feature_vector = df.iloc[index]
+        item = df.iloc[index].values
+
+        features_vector = item[:-1]
+        label = item[-1]
 
         # transform it to kernel
-        kernel = tac.feature_vector_to_kernel(feature_vector, 5, self._op)
+        features_vector = np.delete(features_vector, [8,9,10,13])
+        
+
         # apply it on the base image
 
         # return the convolved image
 
         
-        sample = {'image': None, 'label': None}
+        sample = {'image': None, 'label': label}
         
         return sample
