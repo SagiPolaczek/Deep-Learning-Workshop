@@ -74,3 +74,15 @@ def trim(feature_vector: np.ndarray, k: int, mode='random', columns_to_trim: Opt
     """
     
     pass
+
+
+def normalize(image: np.ndarray) -> np.ndarray:
+    """
+    
+    """
+    min_value = image.min()
+    image = image - min_value
+    image = image / image.max()
+
+    return image
+

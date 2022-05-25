@@ -33,7 +33,7 @@ def tac_algorithm(training_set, validation_set, base_image):
     
     pass
 
-def feature_vector_to_kernel(features_vector: np.ndarray) -> np.ndarray:
+def feature_vector_to_kernel(features_vector: np.ndarray, k: int, mode: str = 'default') -> np.ndarray:
     """
     Converts a feature vector into a kerenl with a size (k x k) when k := nearest_odd using the supplied op.
 
@@ -55,7 +55,15 @@ def feature_vector_to_kernel(features_vector: np.ndarray) -> np.ndarray:
     # now the vector with the right size (k^2)
     # should we convert it to a (k x k) kernel? (img/tensor etc. not a vector)
 
-    pass
+    if mode == 'default':
+        mean_value = np.mean(features_vector)
+
+        features_vector = features_vector - mean_value
+
+
+
+    kernel = features_vector.reshape((k, k))
+    return kernel
 
 
 def trim_or_pad(training_set, dim: int, nearest_odd: int, mode='default') -> str:
