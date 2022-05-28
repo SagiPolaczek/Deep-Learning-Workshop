@@ -11,6 +11,7 @@ import numpy as np
 import skimage
 import scipy.signal as signal
 from typing import Optional
+from sklearn.model_selection import train_test_split
 
 import tac
 import utils
@@ -29,7 +30,7 @@ class SchoolDataset(Dataset):
         self._file_path = file_path
         self._base_image_path = base_image_path
 
-        self._len = pd.read_csv(file_path).shape[0]
+        self._df = pd.read_csv(file_path)
         self._op = 'trim'
         self._features_dim = 29
 
@@ -37,6 +38,18 @@ class SchoolDataset(Dataset):
         # Can be read from path or supplied externaly
         self._base_image = skimage.data.coins()
 
+        # Split into training data and validation data
+        samples_ids = self._df.index.tolist()
+        train_samples, val_samples = train_test_split(samples_ids, test_size=0.25, random_state=42)
+
+        # Define the dataframe and the dataset's length
+        if train:
+            self._df = self._df.iloc[train_samples]
+
+        if not train:
+            self._df = self._df.iloc[val_samples]
+
+        self._len = self._df.shape[0]
         pass
 
     def __len__(self) -> int:
@@ -52,8 +65,7 @@ class SchoolDataset(Dataset):
         :param index:
         """
         # Read the 'index' feature vector
-        df = pd.read_csv(self._file_path)
-        item = df.iloc[index].values
+        item = self._df.iloc[index].values
 
         features_vector = item[:-1]
         label = item[-1]
