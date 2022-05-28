@@ -1,7 +1,7 @@
 import unittest
-import tac.utils
 import numpy as np
-
+# import IGTD
+import tac.utils
 
 class TestUtils(unittest.TestCase):
 
@@ -22,6 +22,16 @@ class TestUtils(unittest.TestCase):
         assert tac.utils.nearest_odd_root(26) == 7
         assert tac.utils.nearest_odd_root(48) == 7
 
-
+    def test_jsd(self):
+        """
+        Test jensen_shannon_distance
+        """
+        X = np.array([[1,2,3],[4,5,6],[7,8,9]])
+        X = IGTD.utils.normalized_data(X)
+        assert np.array_equal(IGTD.utils.jensen_shannon_distance(X=X),\
+                            np.array([[0., 0.10693419, 0.14038336],
+                                      [0.10693419, 0.,0.02301584],
+                                      [0.14038336, 0.02301584, 0.]]))
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    print(sys.path)

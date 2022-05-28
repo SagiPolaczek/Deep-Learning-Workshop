@@ -1,13 +1,14 @@
 import pandas as pd
+import numpy as np
 import os
-from IGTD.IGTD_Functions import min_max_transform, table_to_image
+from IGTD_algo.IGTD_Functions import min_max_transform, table_to_image
 
 num_row = 30  # Number of pixel rows in image representation
 num_col = 30  # Number of pixel columns in image representation
 num = num_row * num_col  # Number of features to be included for analysis, which is also the total number of pixels
 # in image representation
 save_image_size = 3  # Size of pictures (in inches) saved during the execution of IGTD algorithm.
-max_step = 10000  # The maximum number of iterations to run the IGTD algorithm, if it does not converge.
+max_step = 10  # The maximum number of iterations to run the IGTD algorithm, if it does not converge.
 val_step = 300  # The number of iterations for determining algorithm convergence. If the error reduction rate
 # is smaller than a pre-set threshold for val_step iterations, the algorithm converges.
 
@@ -16,18 +17,17 @@ val_step = 300  # The number of iterations for determining algorithm convergence
 data = pd.read_csv('../Data/Data.txt', low_memory=False, sep='\t', engine='c', na_values=['na', '-', ''],
                    header=0, index_col=0)
 data = data.iloc[:, :num]
-print(data)
 norm_data = min_max_transform(data.values)
 norm_data = pd.DataFrame(norm_data, columns=data.columns, index=data.index)
 
-print(f"SIZE OF THE RAW DATA IS - {norm_data.shape}")
+
 # Run the IGTD algorithm using (1) the Euclidean distance for calculating pairwise feature distances and pariwise pixel
 # distances and (2) the absolute function for evaluating the difference between the feature distance ranking matrix and
 # the pixel distance ranking matrix. Save the result in Test_1 folder.
-fea_dist_method = 'Pearson'
+fea_dist_method = 'Jensen-shannon'
 image_dist_method = 'Euclidean'
 error = 'squared'
-result_dir = '../IGTD/Results/Test_1'
+result_dir = '../IGTD/IGTD/Results-shanon/Test_1'
 os.makedirs(name=result_dir, exist_ok=True)
 table_to_image(norm_data, [num_row, num_col], fea_dist_method, image_dist_method, save_image_size,
                max_step, val_step, result_dir, error)
