@@ -12,6 +12,7 @@ import skimage
 import scipy.signal as signal
 from typing import Optional
 from sklearn.model_selection import train_test_split
+from torchvision import transforms
 
 import tac
 import utils
@@ -22,13 +23,14 @@ class SchoolDataset(Dataset):
     
     """
 
-    def __init__(self, file_path: str, base_image_path: Optional[str] = None, train: bool = True):
+    def __init__(self, file_path: str, base_image_path: Optional[str] = None, train: bool = True, transform: Optional[transforms.Compose] = None):
         """
         TODO added train/valid partition
 
         """
         self._file_path = file_path
         self._base_image_path = base_image_path
+        self._transform = transform
 
         self._df = pd.read_csv(file_path)
         self._op = 'trim'
@@ -77,6 +79,11 @@ class SchoolDataset(Dataset):
         # apply it on the base image
         image = signal.convolve2d(self._base_image, kernel)
         image = utils.normalize(image)
+
+        # apply transform
+        if self._transform:
+            image = self._transform(image)
+            image = image.float()
 
         # return the convolved image
         sample = {'image': image, 'label': label}
