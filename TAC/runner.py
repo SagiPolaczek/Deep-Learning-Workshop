@@ -20,11 +20,17 @@ from models import LitModel, POCModel
 DATA_PATH = "tac/data/student-mat-pass-or-fail.csv"
 AVAILABLE_GPUS = min(1, torch.cuda.device_count())
 
+# Training Parameters
 train_params = {
-    'batch_size' : 64 if AVAILABLE_GPUS else 16,
-    'epochs' : 10,
-
+    'batch_size' : 64 if AVAILABLE_GPUS else 5,
+    'epochs' : 0,
+    'learning_rate' : 0.001,
+    'optim_momentum' : 0.9,
 }
+
+###############
+#### TRAIN ####
+###############
 
 # Initialize model
 model = POCModel()
@@ -35,11 +41,11 @@ transform = transforms.Compose(
     ])
 
 train_data = SchoolDataset(file_path=DATA_PATH, train=True, transform=transform)
-train_loader = DataLoader(train_data, batch_size=train_params['batch_size'])
+train_loader = DataLoader(train_data, shuffle=True, batch_size=train_params['batch_size'])
 
 # Define loss and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=train_params['learning_rate'], momentum=train_params['optim_momentum'])
 
 
 # Train the model
@@ -69,5 +75,31 @@ for epoch in range(train_params['epochs']):
 
 print('Finished Training')
 
+##############
+#### EVAL ####
+##############
+print('Starting Evaluation')
 
-#
+test_data = SchoolDataset(file_path=DATA_PATH, train=False, transform=transform)
+test_loader = DataLoader(test_data, shuffle=False, batch_size=train_params['batch_size'])
+
+correct = 0
+total = 0
+# since we're not training, we don't need to calculate the gradients for our outputs
+with torch.no_grad():
+    for data in test_loader:
+        inputs = data['image']
+        labels = data['label']
+        # calculate outputs by running images through the network
+        outputs = model(inputs)
+        # the class with the highest energy is what we choose as prediction
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f'Accuracy of the network on the {len(test_data)} test samples: {100 * correct // total} %')
+
+
+if __name__ == '__main__':
+
+    pipeline = ['train']

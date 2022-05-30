@@ -38,7 +38,9 @@ class SchoolDataset(Dataset):
 
         # Define base image
         # Can be read from path or supplied externaly
-        self._base_image = skimage.data.coins()
+        self._base_image = skimage.data.coins() # 63%
+        self._base_image = skimage.data.cell() # 63%
+        self._base_image = skimage.data.shepp_logan_phantom() # 
 
         # Split into training data and validation data
         samples_ids = self._df.index.tolist()
