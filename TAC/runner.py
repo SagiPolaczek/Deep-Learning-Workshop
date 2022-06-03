@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from models import LitModel
+from models import LitModel, LeNet, POCModel
 from datasets import SchoolDataset
 
 import os
@@ -15,16 +15,14 @@ from torchmetrics import Accuracy
 from torchvision import transforms
 import torch.optim as optim
 
-from models import LitModel, POCModel
-
 DATA_PATH = "tac/data/student-mat-pass-or-fail.csv"
 AVAILABLE_GPUS = min(1, torch.cuda.device_count())
 
 # Training Parameters
 train_params = {
-    'batch_size' : 64 if AVAILABLE_GPUS else 5,
-    'epochs' : 0,
-    'learning_rate' : 0.001,
+    'batch_size' : 64 if AVAILABLE_GPUS else 2,
+    'epochs' : 30,
+    'learning_rate' : 1e-4,
     'optim_momentum' : 0.9,
 }
 
@@ -33,7 +31,8 @@ train_params = {
 ###############
 
 # Initialize model
-model = POCModel()
+# model = POCModel()
+model = LeNet()
 
 # Initialize Dataset & DataLoader
 transform = transforms.Compose(
@@ -47,6 +46,7 @@ train_loader = DataLoader(train_data, shuffle=True, batch_size=train_params['bat
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=train_params['learning_rate'], momentum=train_params['optim_momentum'])
 
+print('Starting Training')
 
 # Train the model
 for epoch in range(train_params['epochs']):
@@ -71,7 +71,7 @@ for epoch in range(train_params['epochs']):
         running_loss += loss.item()
         items += 1
     
-    print(f'epoch {epoch + 1}, loss: {(running_loss / items) :.4f}')
+    print(f'epoch {epoch + 1}, training loss: {(running_loss / items) :.4f}')
 
 print('Finished Training')
 
@@ -96,7 +96,6 @@ with torch.no_grad():
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
-
 print(f'Accuracy of the network on the {len(test_data)} test samples: {100 * correct // total} %')
 
 
