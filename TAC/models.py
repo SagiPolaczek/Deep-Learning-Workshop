@@ -11,6 +11,8 @@ import pytorch_lightning as pl
 import torch.nn as nn
 import torch.nn.functional as F
 
+from models_parts import Reshape
+
 
 class LitModel(pl.LightningModule):
     def __init__(self):
@@ -89,6 +91,9 @@ class Autoencoder(nn.Module):
         super().__init__()
         # Encodes normalized numerical vector into a 3d image
         self.encoder = nn.Sequential(
+            nn.Linear(30, 25*25),
+            nn.ReLU(),
+            Reshape((25,25)),
 
         )
 
