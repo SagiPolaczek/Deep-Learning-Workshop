@@ -20,9 +20,9 @@ AVAILABLE_GPUS = min(1, torch.cuda.device_count())
 
 # Training Parameters
 train_params = {
-    'batch_size' : 64 if AVAILABLE_GPUS else 2,
+    'batch_size' : 64 if AVAILABLE_GPUS else 5,
     'epochs' : 30,
-    'learning_rate' : 1e-4,
+    'learning_rate' : 1e-3,
     'optim_momentum' : 0.9,
 }
 
@@ -97,8 +97,3 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 print(f'Accuracy of the network on the {len(test_data)} test samples: {100 * correct // total} %')
-
-
-if __name__ == '__main__':
-
-    pipeline = ['train']

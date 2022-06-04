@@ -62,7 +62,7 @@ class LeNet(nn.Module):
                            kernel_size = 5, stride = 1, padding = 0)
     self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 120, 
                            kernel_size = 5, stride = 1, padding = 0)
-    self.linear1 = nn.Linear(1060320, 84)
+    self.linear1 = nn.Linear(745200, 84)
     self.linear2 = nn.Linear(84, 2)
     self.tanh = nn.Tanh()
     self.avgpool = nn.AvgPool2d(kernel_size = 2, stride = 2)
@@ -82,3 +82,23 @@ class LeNet(nn.Module):
     x = self.tanh(x)
     x = self.linear2(x)
     return x
+
+
+class Autoencoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # Encodes normalized numerical vector into a 3d image
+        self.encoder = nn.Sequential(
+
+        )
+
+        # Decodes a 3d image into a normalized numerical vector
+        self.decoder = nn.Sequential(
+
+        )
+
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+
+        return decoded
