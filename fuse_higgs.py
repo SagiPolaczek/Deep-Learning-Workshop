@@ -93,9 +93,9 @@ class HIGGS:
                 (OpReadDataframe(data,
                                  key_column="EventId",
                                  columns_to_extract=feature_columns),
-                 dict()),
+                 dict(prefix="data.feature")),
                 # Squeeze labels into sample_dict['data.label']
-                (OpKeysToList(HIGGS.get_feature_columns(HIGGS.DATA_PATH)), dict()),
+                (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpPrintKeysContent(num_samples=1), dict()),
                 (OpReshapeVector(), dict()),
             ],
@@ -213,7 +213,8 @@ class HIGGS:
         Gets the samples ids in trainset.
         """
         data = pd.read_csv(data_path)
-        features_cols = data.columns.drop(["EventId", "Weight", "Label"])
+        features_cols = data.columns.drop(
+            ["EventId", "Weight", "Label"]).to_list()
         return features_cols
 
 
