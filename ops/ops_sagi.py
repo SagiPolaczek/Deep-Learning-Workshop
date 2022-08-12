@@ -6,6 +6,7 @@ from fuse.utils import NDict
 from fuse.data import OpBase
 import numpy
 import torch
+import scipy.signal as signal
 
 
 
@@ -56,3 +57,20 @@ class OpKeysToList(OpBase):
         return sample_dict
 
 
+
+class OpConvImageKernel(OpBase):
+    """
+    convolve image with a given kernel
+    """
+
+    def __init__(self, base_image):
+        super().__init__()
+        self._base_image = base_image
+
+    def __call__(self, sample_dict: NDict, key_in_kernel: str, key_out: str) -> NDict:
+        
+        kernel = sample_dict[key_in_kernel]
+        image = signal.convolve2d(self._base_image, kernel)
+
+        sample_dict[key_out] = image
+        return sample_dict

@@ -119,7 +119,7 @@ class EYE:
 
 
                 # Step 4: reshape to kerenl - shuki
-
+                
                 # Step 5: Convolve with base image - sagi
 
 
