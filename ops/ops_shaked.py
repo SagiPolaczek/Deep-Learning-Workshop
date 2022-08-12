@@ -21,4 +21,4 @@ class OpReshapeVector(OpBase):
         k = int(np.sqrt(np_vec.shape[0]))
         kernel = np_vec.reshape((k, k))
         sample_dict["data.kernel"] = kernel
-        return super().__call__(sample_dict, **kwargs)
+        return sample_dict
