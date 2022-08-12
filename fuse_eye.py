@@ -17,7 +17,7 @@ from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
-from fuseimg.data.ops.color import OpToRange
+from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
 from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
 
 from fuse.utils import NDict
@@ -28,8 +28,10 @@ from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
 
+from ops.ops_shaked import OpReshapeVector, OpReshapeVectorV2
+from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean
+import skimage
 
-from ops.ops_sagi import OpKeysToList
 
 class OpEYESampleIDDecode(OpBase):
     def __call__(self, sample_dict: NDict) -> NDict:
@@ -94,7 +96,7 @@ class EYE:
         feature_columns = EYE.get_feature_columns()
         data = arff.loadarff(data_path)
         df = pd.DataFrame(data[0])
-
+        base_image = skimage.data.shepp_logan_phantom() # Temp
 
         static_pipeline = PipelineDefault(
             "static",
@@ -115,13 +117,17 @@ class EYE:
 
                 # Step 3: load all the features into a list
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
-                (OpToNumpy(), dict(key="data.vector", dtype=np.float)),
+                (OpToNumpy(), dict(key="data.vector", dtype=float)),
 
 
                 # Step 4: reshape to kerenl - shuki
-                
-                # Step 5: Convolve with base image - sagi
+                (OpReshapeVectorV2(), dict(key_in_vector="data.vector", key_out="data.kernel")),
 
+                # Step 4.1: subract mean
+                (OpSubtractMean(), dict(key="data.kernel")),
+
+                # Step 5: Convolve with base image - sagi
+                (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
 
                 # DEBUG
                 (OpPrintKeysContent(num_samples=1), dict(keys=None)),
@@ -267,7 +273,7 @@ class EYE:
             "pupilDiamLag",
             "timePrtctg",
             "nWordsInTitle",
-            "titleNo",
+            # "titleNo",     -> temp for dim k^2
             "wordNo",
             # "label",    -> label column
         ]
@@ -291,4 +297,4 @@ if __name__ == "__main__":
     assert len(dataset) == 10936
 
     sample = dataset[0]
-    sample.print_tree()
+    # sample.print_tree()
