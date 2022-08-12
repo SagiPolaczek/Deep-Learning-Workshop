@@ -6,9 +6,10 @@ from typing import Hashable, Optional, Sequence, List, Tuple
 import torch
 from scipy.io import arff
 import pandas as pd
+import numpy as np
 
 from fuse.data import DatasetDefault
-from fuse.data.ops.ops_cast import OpToTensor
+from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy
 from fuse.data.utils.sample import get_sample_id
 from fuse.data.pipelines.pipeline_default import PipelineDefault
 from fuse.data.ops.op_base import OpBase
@@ -26,6 +27,9 @@ from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
 from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
+
+
+from ops.ops_sagi import OpKeysToList
 
 class OpEYESampleIDDecode(OpBase):
     def __call__(self, sample_dict: NDict) -> NDict:
@@ -105,9 +109,21 @@ class EYE:
                         columns_to_extract=feature_columns,
                     ),
                     dict(prefix="data.feature")),
-                
-                
 
+                # Step 2.5: delete feature to match k^2
+                # OpFunc
+
+                # Step 3: load all the features into a list
+                (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
+                (OpToNumpy(), dict(key="data.vector", dtype=np.float)),
+
+
+                # Step 4: reshape to kerenl - shuki
+
+                # Step 5: Convolve with base image - sagi
+
+
+                # DEBUG
                 (OpPrintKeysContent(num_samples=1), dict(keys=None)),
 
 
@@ -223,6 +239,7 @@ class EYE:
         return my_dataset
 
     def get_feature_columns() -> List[str]:
+        
 
         list_of_columns = [
             # "lineNo",    -> id same as index
@@ -254,6 +271,7 @@ class EYE:
             "wordNo",
             # "label",    -> label column
         ]
+
         return list_of_columns
 
 
@@ -272,6 +290,5 @@ if __name__ == "__main__":
     )
     assert len(dataset) == 10936
 
-    for sample_index in range(10):
-        sample = dataset[sample_index]
-        assert get_sample_id(sample) == (sample_index +1)
+    sample = dataset[0]
+    sample.print_tree()
