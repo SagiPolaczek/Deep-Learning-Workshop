@@ -19,6 +19,7 @@ from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
 from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
 from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
+from fuseimg.data.ops.ops_debug import OpVis2DImage
 
 from fuse.utils import NDict
 
@@ -131,7 +132,7 @@ class EYE:
 
                 # DEBUG
                 (OpPrintKeysContent(num_samples=1), dict(keys=None)),
-
+                (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
                 # Load label
                 # (OpLambda(func=derive_label), dict()),
