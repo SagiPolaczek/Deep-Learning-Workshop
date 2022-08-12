@@ -22,9 +22,9 @@ from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
 # --- added ops by me
 from ops.ops_shaked import OpReshapeVector
 # --- added ops by sagi
-from ops.ops_sagi import OpKeysToList
+from ops.ops_sagi import OpKeysToList, OpConvImageKernel
 
-
+import skimage
 import pandas as pd
 
 
@@ -97,6 +97,8 @@ class HIGGS:
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpPrintKeysContent(num_samples=1), dict()),
                 (OpReshapeVector(), dict()),
+                (OpConvImageKernel(base_image=skimage.data.coins()),
+                 dict(key_in_kernel="data.kernel", key_out="data.img")),
             ],
         )
         return static_pipeline
