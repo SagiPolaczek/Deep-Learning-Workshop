@@ -15,9 +15,10 @@ class OpReshapeVector(OpBase):
 
     def __call__(self, sample_dict: NDict, **kwargs) -> Union[None, dict, List[dict]]:
 
-        # reshape input to kernel of size k x k where k = square(vec.shape[1])
-        vec = sample_dict["data.values_vector"]
-        k = int(np.sqrt(self.vec.shape[1]))
-        self.kernel = self.vec.reshape((k, k))
-        sample_dict["data.kernel"] = self.kernel
+        # reshape input to kernel of size k x k where k = sqrt(vec.shape[1])
+        vec = sample_dict["data.vector"]
+        np_vec = np.array(vec)
+        k = int(np.sqrt(np_vec.shape[0]))
+        kernel = np_vec.reshape((k, k))
+        sample_dict["data.kernel"] = kernel
         return super().__call__(sample_dict, **kwargs)

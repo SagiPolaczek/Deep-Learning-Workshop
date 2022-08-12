@@ -94,7 +94,6 @@ class HIGGS:
                                  key_column="EventId",
                                  columns_to_extract=feature_columns),
                  dict(prefix="data.feature")),
-                # Squeeze labels into sample_dict['data.label']
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpPrintKeysContent(num_samples=1), dict()),
                 (OpReshapeVector(), dict()),
