@@ -1,5 +1,5 @@
 from zipfile import ZipFile
-from fuse.data.ops.ops_debug import OpPrintKeys
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
 from fuse.utils.file_io.file_io import create_dir
 from typing import Hashable, Optional, Sequence, List, Tuple
 import torch
@@ -14,6 +14,7 @@ from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda
 from fuse.utils import NDict
+from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
 
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 import pandas as pd
@@ -66,9 +67,8 @@ class HIGGS:
         """
         data = pd.read_csv(data_path)
         data.set_index("EventId", inplace=True)
-        print(data.iloc[0])
         idxs_lst = data.index.to_list()
-        return data.iloc[idxs_lst].values
+        return data.loc[idxs_lst].values
 
     @staticmethod
     def static_pipeline(data_path: str) -> PipelineDefault:
@@ -90,7 +90,7 @@ class HIGGS:
                  dict()),
                 # Squeeze labels into sample_dict['data.label']
                 # (OpLambda(func=derive_label), dict()),
-                (OpPrintKeys(num_samples=1), dict()),
+                (OpPrintKeysContent(num_samples=1), dict()),
             ],
         )
         return static_pipeline
@@ -168,7 +168,7 @@ class HIGGS:
         :param sample_ids: dataset including the specified sample_ids or None for all the samples.
         """
         # Download data if doesn't exist
-        HIGGS.download(data_path=data_path, sample_ids_to_download=samples_ids)
+        # HIGGS.download(data_path=data_path, sample_ids_to_download=samples_ids)
 
         if samples_ids is None:
             samples_ids = HIGGS.sample_ids(data_path)
@@ -178,7 +178,7 @@ class HIGGS:
             train, append=append_dyn_pipeline)
 
         cacher = SamplesCacher(
-            f"isic_cache_ver{HIGGS.DATASET_VER}",
+            f"higgs_cache_ver{HIGGS.DATASET_VER}",
             static_pipeline,
             [cache_path],
             restart_cache=reset_cache,
@@ -186,7 +186,10 @@ class HIGGS:
         )
 
         my_dataset = DatasetDefault(
-            sample_ids=samples_ids, static_pipeline=static_pipeline, dynamic_pipeline=dynamic_pipeline, cacher=cacher
+            sample_ids=samples_ids,
+            static_pipeline=static_pipeline,
+            dynamic_pipeline=dynamic_pipeline,
+            cacher=None
         )
 
         my_dataset.create()
@@ -194,7 +197,7 @@ class HIGGS:
 
 
 if __name__ == "__main__":
-    data_path = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/higgs/raw_data/training.csv"
+    data_path = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
     ROOT = "./test_dataset"
     cache_dir = os.path.join(ROOT, "cache_dir")
 
@@ -205,6 +208,8 @@ if __name__ == "__main__":
         data_path, cache_dir, reset_cache=True, samples_ids=None
     )
 
-    for sample_index in range(10):
-        sample = dataset[sample_index]
-        assert get_sample_id(sample) == (sample_index + 1)
+    ids = dataset.get_all_sample_ids()
+    print(ids)
+
+    print(dataset.getitem(1))
+    # sample.print_tree()
