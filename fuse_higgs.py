@@ -1,4 +1,5 @@
 from zipfile import ZipFile
+from fuse import data
 from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
 from fuse.utils.file_io.file_io import create_dir
 from typing import Hashable, Optional, Sequence, List, Tuple
@@ -8,15 +9,22 @@ from fuse.data import DatasetDefault
 from fuse.data.ops.ops_cast import OpToTensor
 from fuse.data.utils.sample import get_sample_id
 from fuse.data.pipelines.pipeline_default import PipelineDefault
-from fuse.data.ops.op_base import OpBase
 from fuse.data.datasets.caching.samples_cacher import SamplesCacher
+from fuse.utils import NDict
+from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
+
+from fuse.data.ops.op_base import OpBase
 from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda
-from fuse.utils import NDict
 from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
+from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
+# --- added ops by me
+from ops.ops_shaked import OpReshapeVector
+# --- added ops by sagi
+from ops.ops_sagi import OpKeysToList
 
-from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
+
 import pandas as pd
 
 
@@ -52,7 +60,7 @@ class HIGGS:
     """
     # bump whenever the static pipeline modified
     DATASET_VER = 0
-
+    DATA_PATH = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
     CLASS_NAMES = ["b", "s"]
 
     # TODO:
@@ -66,9 +74,7 @@ class HIGGS:
         Gets the samples ids in trainset.
         """
         data = pd.read_csv(data_path)
-        data.set_index("EventId", inplace=True)
-        idxs_lst = data.index.to_list()
-        return data.loc[idxs_lst].values
+        return data["EventId"]
 
     @staticmethod
     def static_pipeline(data_path: str) -> PipelineDefault:
@@ -89,8 +95,9 @@ class HIGGS:
                                  columns_to_extract=feature_columns),
                  dict()),
                 # Squeeze labels into sample_dict['data.label']
-                # (OpLambda(func=derive_label), dict()),
+                (OpKeysToList(HIGGS.get_feature_columns(HIGGS.DATA_PATH)), dict()),
                 (OpPrintKeysContent(num_samples=1), dict()),
+                (OpReshapeVector(), dict()),
             ],
         )
         return static_pipeline
@@ -109,8 +116,10 @@ class HIGGS:
             # Resize images to 300x300x3
             (
                 OpResizeTo(channels_first=True),
-                dict(key="data.input.img", output_shape=(
-                    300, 300, 3), mode="reflect", anti_aliasing=True),
+                dict(key="data.input.img",
+                     output_shape=(300, 300, 3),
+                     mode="reflect",
+                     anti_aliasing=True),
             ),
             # Convert to tensor for the augmentation process
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
@@ -141,7 +150,9 @@ class HIGGS:
                     ),
                 ),
                 # Add Gaussian noise
-                (OpAugGaussian(), dict(key="data.input.img", std=0.03)),
+                (OpAugGaussian(),
+                    dict(key="data.input.img",
+                         std=0.03)),
             ]
 
         if append is not None:
@@ -174,8 +185,9 @@ class HIGGS:
             samples_ids = HIGGS.sample_ids(data_path)
 
         static_pipeline = HIGGS.static_pipeline(data_path)
-        dynamic_pipeline = HIGGS.dynamic_pipeline(
-            train, append=append_dyn_pipeline)
+        # dynamic_pipeline = HIGGS.dynamic_pipeline(
+        #     train, append=append_dyn_pipeline)
+        dynamic_pipeline = None
 
         cacher = SamplesCacher(
             f"higgs_cache_ver{HIGGS.DATASET_VER}",
@@ -195,6 +207,15 @@ class HIGGS:
         my_dataset.create()
         return my_dataset
 
+    @staticmethod
+    def get_feature_columns(data_path: str) -> List[str]:
+        """
+        Gets the samples ids in trainset.
+        """
+        data = pd.read_csv(data_path)
+        features_cols = data.columns.drop(["EventId", "Weight", "Label"])
+        return features_cols
+
 
 if __name__ == "__main__":
     data_path = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
@@ -209,7 +230,5 @@ if __name__ == "__main__":
     )
 
     ids = dataset.get_all_sample_ids()
-    print(ids)
-
-    print(dataset.getitem(1))
-    # sample.print_tree()
+    sample = dataset.getitem(100000)
+    sample.print_tree()
