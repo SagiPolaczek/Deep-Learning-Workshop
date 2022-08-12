@@ -137,3 +137,8 @@ tac/notebook_playground.ipynb
 
 # mac staff
 .DS_Store
+
+
+# Workshop related
+raw_data
+temp_eye_nb.ipynb
