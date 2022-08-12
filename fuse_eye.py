@@ -134,7 +134,7 @@ class EYE:
                 (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
-                # Load label
+                # Load label TODO
                 # (OpLambda(func=derive_label), dict()),
             ],
         )
@@ -151,53 +151,12 @@ class EYE:
         """
 
         dynamic_pipeline = [
-            # Resize images to 300x300x3
-            (
-                OpResizeTo(channels_first=True),
-                dict(
-                    key="data.input.img",
-                    output_shape=(300, 300, 3),
-                    mode="reflect",
-                    anti_aliasing=True,
-                ),
-            ),
-            # Convert to tensor for the augmentation process
+            # Convert to tensor
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
         ]
 
-        if train:
-            dynamic_pipeline += [
-                # Augmentation
-                (
-                    OpSample(OpAugAffine2D()),
-                    dict(
-                        key="data.input.img",
-                        rotate=Uniform(-180.0, 180.0),
-                        scale=Uniform(0.9, 1.1),
-                        flip=(RandBool(0.3), RandBool(0.3)),
-                        translate=(RandInt(-50, 50), RandInt(-50, 50)),
-                    ),
-                ),
-                # Color augmentation
-                (
-                    OpSample(OpAugColor()),
-                    dict(
-                        key="data.input.img",
-                        gamma=Uniform(0.9, 1.1),
-                        contrast=Uniform(0.85, 1.15),
-                        add=Uniform(-0.06, 0.06),
-                        mul=Uniform(0.95, 1.05),
-                    ),
-                ),
-                # Add Gaussian noise
-                (OpAugGaussian(), dict(key="data.input.img", std=0.03)),
-            ]
-
-        if append is not None:
-            dynamic_pipeline += append
-
-        # return PipelineDefault("dynamic", dynamic_pipeline)
-        return PipelineDefault("dynamic", [])
+        return PipelineDefault("dynamic", dynamic_pipeline)
+        # return PipelineDefault("dynamic", [])
 
     @staticmethod
     def dataset(
