@@ -125,7 +125,7 @@ class EYE:
 
                 (OpToInt(), dict(key="data.label")),
                 # DEBUG
-                (OpPrintShapes(num_samples=1), dict()),
+                # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
                 # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
@@ -242,10 +242,10 @@ class EYE:
 
 
 if __name__ == "__main__":
-    ROOT = "./test_dataset"
+    ROOT = "/tmp/_sagi/test_dataset"
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    data_dir = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eye_movements.arff"
+    data_dir = "sagi_dl_workshop/data/raw_data/eye_movements.arff"
 
     sp = EYE.static_pipeline(data_dir)
     # print(sp)
@@ -258,3 +258,4 @@ if __name__ == "__main__":
 
     sample = dataset[0]
     # sample.print_tree()
+    print("DONE!")
