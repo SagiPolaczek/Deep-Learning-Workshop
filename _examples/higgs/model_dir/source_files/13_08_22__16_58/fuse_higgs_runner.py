@@ -458,7 +458,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "infer", "eval"]
 
     # train
     if "train" in RUNNING_MODES:

@@ -1,8 +1,25 @@
+"""
+(C) Copyright 2021 IBM Corp.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created on June 30, 2021
+
+"""
+
 import os
 from typing import OrderedDict
 import logging
-import copy
-
 
 import torch
 import pytorch_lightning as pl
@@ -15,8 +32,6 @@ from fuse.utils.utils_logger import fuse_logger_start
 from fuse.utils.file_io.file_io import create_dir, save_dataframe
 from fuse.data.utils.split import dataset_balanced_division_to_folds
 
-from fuse.eval.metrics.classification.metrics_thresholding_common import MetricApplyThresholds
-from fuse.eval.metrics.classification.metrics_classification_common import MetricAccuracy, MetricAUCROC, MetricROCCurve
 
 from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.datasets.dataset_default import DatasetDefault
@@ -31,12 +46,9 @@ from fuse.dl.models import ModelMultiHead
 from fuse.dl.lightning.pl_module import LightningModuleDefault
 from fuse.dl.lightning.pl_funcs import convert_predictions_to_dataframe
 
-from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_higgs import HIGGS
-from ops.ops_sagi import *
-from ops.ops_shaked import *
 
 ###########################################################################################################
 # Fuse
@@ -45,7 +57,7 @@ from ops.ops_shaked import *
 ##########################################
 # Debug modes
 ##########################################
-mode = "debug"  # Options: 'default', 'debug'. See details in FuseDebug
+mode = "default"  # Options: 'default', 'debug'. See details in FuseDebug
 debug = FuseDebug(mode)
 
 ##########################################
@@ -79,8 +91,6 @@ TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [3]
-TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
-
 
 # ===============
 # PL Trainer
@@ -106,7 +116,7 @@ def create_model() -> torch.nn.Module:
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 3),),
         backbone={
-            "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
+            "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
             "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
         }["InceptionResnetV2"],
         heads=[
@@ -145,53 +155,46 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     print("Train Data:")
 
-    if mode == "debug":
-        train_sample_ids = [
-            "0", "6", "7", "9", "15",  # class s
-            "1", "2", "3", "4", "5",  # class b
-        ]
-        validation_sample_ids = [
-            "31", "32", "36",  # class s
-            "33", "34", "35",  # class b
-        ]
+    # TODO - list your sample ids:
+    # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
+    #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
+    all_dataset = HIGGS.dataset(
+        paths["data_dir"],
+        paths["cache_dir"],
+        reset_cache=False,
+        num_workers=train_common_params["data.train_num_workers"],
+        samples_ids=train_common_params["data.samples_ids"],
+    )
 
-    else:
+    folds = dataset_balanced_division_to_folds(
+        dataset=all_dataset,
+        output_split_filename=paths["data_split_filename"],
+        keys_to_balance=["data.label"],
+        nfolds=train_common_params["data.num_folds"],
+    )
 
-        # TODO - list your sample ids:
-        # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
-        #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
-        all_dataset = HIGGS.dataset(
-            paths["data_dir"],
-            paths["cache_dir"],
-            reset_cache=False,
-            num_workers=train_common_params["data.train_num_workers"],
-            samples_ids=train_common_params["data.samples_ids"],
-        )
-
-        folds = dataset_balanced_division_to_folds(
-            dataset=all_dataset,
-            output_split_filename=paths["data_split_filename"],
-            keys_to_balance=["data.label"],
-            nfolds=train_common_params["data.num_folds"],
-        )
-
-        train_sample_ids = []
-        for fold in train_common_params["data.train_folds"]:
-            train_sample_ids += folds[fold]
-        validation_sample_ids = []
-        for fold in train_common_params["data.validation_folds"]:
-            validation_sample_ids += folds[fold]
+    train_sample_ids = []
+    for fold in train_common_params["data.train_folds"]:
+        train_sample_ids += folds[fold]
+    validation_sample_ids = []
+    for fold in train_common_params["data.validation_folds"]:
+        validation_sample_ids += folds[fold]
 
     train_dataset = HIGGS.dataset(
         paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=train_sample_ids)
 
     # Create batch sampler
+    # Fuse TIPs:
+    # 1. You don't have to balance according the classification labels, any categorical value will do.
+    #    Use balanced_class_name to select the categorical value
+    # 2. You don't have to equally balance between the classes.
+    #    Use balanced_class_weights to specify the number of required samples in a batch per each class
+    # 3. Use mode to specify probabilities rather then exact number of samples from  a class in each batch
     print("- Create sampler:")
-    sampler = None  # Debug, delete when finished
     sampler = BatchSamplerDefault(
         dataset=train_dataset,
         balanced_class_name="data.label",
-        num_balanced_classes=2,
+        num_balanced_classes=3,
         batch_size=train_common_params["data.batch_size"],
     )
 
@@ -240,7 +243,6 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #       monitor: the metric name to track
     #       mode: either consider the "min" value to be best or the "max" value to be the best
     # =========================================================================================================
-    class_names = ["s", "b"]
     train_metrics = OrderedDict(
         [
             # will apply argmax
@@ -458,7 +460,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "infer", "eval"]
 
     # train
     if "train" in RUNNING_MODES:

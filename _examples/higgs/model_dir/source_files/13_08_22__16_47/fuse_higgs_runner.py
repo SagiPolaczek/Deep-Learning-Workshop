@@ -106,7 +106,7 @@ def create_model() -> torch.nn.Module:
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 3),),
         backbone={
-            "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
+            "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
             "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
         }["InceptionResnetV2"],
         heads=[
@@ -147,12 +147,12 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if mode == "debug":
         train_sample_ids = [
-            "0", "6", "7", "9", "15",  # class s
-            "1", "2", "3", "4", "5",  # class b
+            "100000", "349997", "100009", "100008", "100007",  # class s
+            "100001", "100002", "100003", "349996", "349995",  # class b
         ]
         validation_sample_ids = [
-            "31", "32", "36",  # class s
-            "33", "34", "35",  # class b
+            "100036", "100037", "100038",  # class s
+            "100033", "100034", "100035",  # class b
         ]
 
     else:
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "infer", "eval"]
 
     # train
     if "train" in RUNNING_MODES:

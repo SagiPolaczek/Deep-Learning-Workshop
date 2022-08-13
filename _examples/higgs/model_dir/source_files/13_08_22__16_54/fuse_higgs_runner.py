@@ -106,7 +106,7 @@ def create_model() -> torch.nn.Module:
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 3),),
         backbone={
-            "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
+            "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
             "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
         }["InceptionResnetV2"],
         heads=[
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "infer", "eval"]
 
     # train
     if "train" in RUNNING_MODES:

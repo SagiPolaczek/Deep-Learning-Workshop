@@ -1,31 +1,50 @@
+import os
 from zipfile import ZipFile
-from fuse import data
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
 from fuse.utils.file_io.file_io import create_dir
+import wget
 from typing import Hashable, Optional, Sequence, List, Tuple
 import torch
-import os
+from scipy.io import arff
+import pandas as pd
+import numpy as np
+
 from fuse.data import DatasetDefault
-from fuse.data.ops.ops_cast import OpToTensor
+from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy, OpToInt
 from fuse.data.utils.sample import get_sample_id
 from fuse.data.pipelines.pipeline_default import PipelineDefault
-from fuse.data.datasets.caching.samples_cacher import SamplesCacher
-from fuse.utils import NDict
-from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
-
 from fuse.data.ops.op_base import OpBase
+from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
-from fuse.data.ops.ops_common import OpLambda
-from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
-from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
-# --- added ops by me
-from ops.ops_shaked import OpReshapeVector
-# --- added ops by sagi
-from ops.ops_sagi import OpKeysToList, OpConvImageKernel
+from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
+from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
+from fuseimg.data.ops.ops_debug import OpVis2DImage
 
+from fuse.utils import NDict
+
+from fuseimg.data.ops.image_loader import OpLoadImage
+from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
+from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
+from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
+
+
+from ops.ops_sagi import *
+from ops.ops_shaked import *
 import skimage
-import pandas as pd
+
+
+class OpHIGGSSampleIDDecode(OpBase):
+    def __call__(self, sample_dict: NDict) -> NDict:
+        """
+        decodes sample id
+        """
+
+        sample_dict["data.sample_id_as_int"] = int(
+            sample_dict["data.sample_id"])
+        # Cast the sample ids from integers to strings to match fuse's sampler
+        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
+        return sample_dict
 
 
 def derive_label(sample_dict: NDict) -> NDict:
@@ -38,7 +57,7 @@ def derive_label(sample_dict: NDict) -> NDict:
         will assign, sample_dict['data.label'] = 1 ('NV's index).
         Afterwards the sample_dict won't contain the class' names & values.
     """
-    classes_names = ["MEL", "NV", "BCC", "AK", "BKL", "DF", "VASC", "SCC"]
+    classes_names = ["s", "b"]
 
     label = 0
     for idx, cls_name in enumerate(classes_names):
@@ -51,59 +70,100 @@ def derive_label(sample_dict: NDict) -> NDict:
 
 class HIGGS:
     """
-        HIGGS challenge to classify an event to background ot signal.
-        an event refers to the results just after a fundamental interaction takes place between
-        subatomic particles, occurring in a very short time span, at a well-localized region of space.
-        A background event is explained by the existing theories and previous observations.
-        A signal event indicates a process that cannot be described by previous observations
-        and leads to the potential discovery of a new particle.
+    TODO
     """
+
     # bump whenever the static pipeline modified
     DATASET_VER = 0
-    DATA_PATH = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
-    CLASS_NAMES = ["b", "s"]
 
-    # TODO:
     @staticmethod
-    def download(data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None) -> None:
+    def download(
+        data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None
+    ) -> None:
+        """
+        TODO
+        """
         pass
 
     @staticmethod
     def sample_ids(data_path: str) -> List[str]:
         """
         Gets the samples ids in trainset.
-        """
-        data = pd.read_csv(data_path)
-        return data["EventId"]
+        #"""
+        # data = arff.loadarff(data_path)
+        # df = pd.DataFrame(data[0])
+        data = pd.read_csv(
+            "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv")
+        samples = range(data.shape[0])
+        return samples
 
     @staticmethod
     def static_pipeline(data_path: str) -> PipelineDefault:
+        df = pd.read_csv(
+            "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv")
+        df.drop(["EventId"], axis=1, inplace=True)
+        # TODO: CHANGE THIS APPLY FUNC
+        df["label"] = df["Label"].apply(lambda val: 1 if val == "s" else 0)
+        feature_columns = HIGGS.get_feature_columns()
 
-        data = pd.read_csv(data_path)
-        feature_columns = data.columns.drop(["Weight", "Label"])
-
-        rename_cls_labels = {
-            c: f"data.cls_labels.{c}" for c in HIGGS.CLASS_NAMES}
-        # also extract image (sample_id)
-        rename_cls_labels["sample"] = "data.cls_labels.sample_id"
+        base_image = skimage.data.shepp_logan_phantom()  # Temp
 
         static_pipeline = PipelineDefault(
             "static",
-            [   # Read Data Frame
-                (OpReadDataframe(data,
-                                 key_column="EventId",
-                                 columns_to_extract=feature_columns),
-                 dict(prefix="data.feature")),
+            [
+                # Step 1: Decoding sample ID TODO delete (?)
+                (OpHIGGSSampleIDDecode(), dict()),
+
+                # Step 2: load sample's features
+                (OpReadDataframe(
+                    data=df,
+                    key_column=None,
+                    key_name="data.sample_id_as_int",
+                    columns_to_extract=feature_columns,
+                ),
+                    dict(prefix="data.feature")),
+
+                # Step 2.5: delete feature to match k^2
+                # OpFunc
+
+                # Step 3: load all the features into a list
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
-                (OpPrintKeysContent(num_samples=1), dict()),
-                (OpReshapeVector(), dict()),
-                (OpConvImageKernel(base_image=skimage.data.coins()),
-                 dict(key_in_kernel="data.kernel", key_out="data.img")),
+                (OpToNumpy(), dict(key="data.vector", dtype=float)),
+
+
+                # Step 4: reshape to kerenl - shuki
+                (OpReshapeVector(), dict(
+                    key_in_vector="data.vector", key_out="data.kernel")),
+
+                # Step 4.1: subract mean
+                (OpSubtractMean(), dict(key="data.kernel")),
+
+                # Step 5: Convolve with base image - sagi
+                (OpConvImageKernel(base_image=base_image), dict(
+                    key_in_kernel="data.kernel", key_out="data.input.img")),
+
+
+                # Load label TODO
+                (OpReadDataframe(
+                    data=df,
+                    key_column=None,  # should be default None.. maybe fix in fuse
+                    key_name="data.sample_id_as_int",
+                    columns_to_extract=["label"],
+                ),
+                    dict(prefix="data")),
+
+                (OpToInt(), dict(key="data.label")),
+                # DEBUG
+                # (OpPrintShapes(num_samples=1), dict()),
+                # (OpPrintTypes(num_samples=1), dict()),
+                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
+                # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
+
             ],
         )
         return static_pipeline
 
-    @ staticmethod
+    @staticmethod
     def dynamic_pipeline(
         train: bool = False, append: Optional[Sequence[Tuple[OpBase, dict]]] = None
     ) -> PipelineDefault:
@@ -114,54 +174,14 @@ class HIGGS:
         """
 
         dynamic_pipeline = [
-            # Resize images to 300x300x3
-            (
-                OpResizeTo(channels_first=True),
-                dict(key="data.input.img",
-                     output_shape=(300, 300, 3),
-                     mode="reflect",
-                     anti_aliasing=True),
-            ),
-            # Convert to tensor for the augmentation process
+            # Convert to tensor
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
         ]
 
-        if train:
-            dynamic_pipeline += [
-                # Augmentation
-                (
-                    OpSample(OpAugAffine2D()),
-                    dict(
-                        key="data.input.img",
-                        rotate=Uniform(-180.0, 180.0),
-                        scale=Uniform(0.9, 1.1),
-                        flip=(RandBool(0.3), RandBool(0.3)),
-                        translate=(RandInt(-50, 50), RandInt(-50, 50)),
-                    ),
-                ),
-                # Color augmentation
-                (
-                    OpSample(OpAugColor()),
-                    dict(
-                        key="data.input.img",
-                        gamma=Uniform(0.9, 1.1),
-                        contrast=Uniform(0.85, 1.15),
-                        add=Uniform(-0.06, 0.06),
-                        mul=Uniform(0.95, 1.05),
-                    ),
-                ),
-                # Add Gaussian noise
-                (OpAugGaussian(),
-                    dict(key="data.input.img",
-                         std=0.03)),
-            ]
-
-        if append is not None:
-            dynamic_pipeline += append
-
         return PipelineDefault("dynamic", dynamic_pipeline)
+        # return PipelineDefault("dynamic", [])
 
-    @ staticmethod
+    @staticmethod
     def dataset(
         data_path: str,
         cache_path: str,
@@ -180,57 +200,88 @@ class HIGGS:
         :param sample_ids: dataset including the specified sample_ids or None for all the samples.
         """
         # Download data if doesn't exist
-        # HIGGS.download(data_path=data_path, sample_ids_to_download=samples_ids)
+        # TODO (?)
 
         if samples_ids is None:
             samples_ids = HIGGS.sample_ids(data_path)
 
         static_pipeline = HIGGS.static_pipeline(data_path)
-        # dynamic_pipeline = HIGGS.dynamic_pipeline(
-        #     train, append=append_dyn_pipeline)
-        dynamic_pipeline = None
+        dynamic_pipeline = HIGGS.dynamic_pipeline(
+            train, append=append_dyn_pipeline)
 
-        cacher = SamplesCacher(
-            f"higgs_cache_ver{HIGGS.DATASET_VER}",
-            static_pipeline,
-            [cache_path],
-            restart_cache=reset_cache,
-            workers=num_workers,
-        )
+        # TODO: delete or reactivate
+        # cacher = SamplesCacher(
+        #     f"higgs_cache_ver{HIGGS.DATASET_VER}",
+        #     static_pipeline,
+        #     [cache_path],
+        #     restart_cache=reset_cache,
+        #     workers=num_workers,
+        # )
 
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
             static_pipeline=static_pipeline,
             dynamic_pipeline=dynamic_pipeline,
-            cacher=None
+            cacher=None,
         )
 
         my_dataset.create()
         return my_dataset
 
-    @staticmethod
-    def get_feature_columns(data_path: str) -> List[str]:
-        """
-        Gets the samples ids in trainset.
-        """
-        data = pd.read_csv(data_path)
-        features_cols = data.columns.drop(
-            ["EventId", "Weight", "Label"]).to_list()
-        return features_cols
+    def get_feature_columns() -> List[str]:
+
+        list_of_columns = [
+            # 'EventId',
+            'DER_mass_MMC',
+            'DER_mass_transverse_met_lep',
+            'DER_mass_vis',
+            'DER_pt_h',
+            'DER_deltaeta_jet_jet',
+            'DER_mass_jet_jet',
+            'DER_prodeta_jet_jet',
+            'DER_deltar_tau_lep',
+            'DER_pt_tot',
+            'DER_sum_pt',
+            'DER_pt_ratio_lep_tau',
+            'DER_met_phi_centrality',
+            'DER_lep_eta_centrality',
+            'PRI_tau_pt',
+            'PRI_tau_eta',
+            'PRI_tau_phi',
+            'PRI_lep_pt',
+            'PRI_lep_eta',
+            'PRI_lep_phi',
+            'PRI_met',
+            'PRI_met_phi',
+            'PRI_met_sumet',
+            'PRI_jet_num',
+            'PRI_jet_leading_pt',
+            'PRI_jet_leading_eta',
+            #  'PRI_jet_leading_phi',
+            #  'PRI_jet_subleading_pt',
+            #  'PRI_jet_subleading_eta',
+            #  'PRI_jet_subleading_phi',
+            #  'PRI_jet_all_pt',
+            #  'Weight',
+            #  'Label'
+        ]
+
+        return list_of_columns
 
 
 if __name__ == "__main__":
-    data_path = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
     ROOT = "./test_dataset"
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    sp = HIGGS.static_pipeline(data_path)
+    data_dir = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
+
+    sp = HIGGS.static_pipeline(data_dir)
+    # print(sp)
 
     create_dir("./cacher")
     dataset = HIGGS.dataset(
-        data_path, cache_dir, reset_cache=True, samples_ids=None
+        data_dir, cache_dir, reset_cache=True, samples_ids=None
     )
 
-    ids = dataset.get_all_sample_ids()
-    sample = dataset.getitem(100000)
+    sample = dataset[0]
     sample.print_tree()

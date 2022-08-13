@@ -1,8 +1,6 @@
 import os
 from typing import OrderedDict
 import logging
-import copy
-
 
 import torch
 import pytorch_lightning as pl
@@ -15,8 +13,6 @@ from fuse.utils.utils_logger import fuse_logger_start
 from fuse.utils.file_io.file_io import create_dir, save_dataframe
 from fuse.data.utils.split import dataset_balanced_division_to_folds
 
-from fuse.eval.metrics.classification.metrics_thresholding_common import MetricApplyThresholds
-from fuse.eval.metrics.classification.metrics_classification_common import MetricAccuracy, MetricAUCROC, MetricROCCurve
 
 from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.datasets.dataset_default import DatasetDefault
@@ -31,13 +27,11 @@ from fuse.dl.models import ModelMultiHead
 from fuse.dl.lightning.pl_module import LightningModuleDefault
 from fuse.dl.lightning.pl_funcs import convert_predictions_to_dataframe
 
-from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_higgs import HIGGS
 from ops.ops_sagi import *
 from ops.ops_shaked import *
-
 ###########################################################################################################
 # Fuse
 ###########################################################################################################
@@ -45,7 +39,7 @@ from ops.ops_shaked import *
 ##########################################
 # Debug modes
 ##########################################
-mode = "debug"  # Options: 'default', 'debug'. See details in FuseDebug
+mode = "default"  # Options: 'default', 'debug'. See details in FuseDebug
 debug = FuseDebug(mode)
 
 ##########################################
@@ -106,7 +100,7 @@ def create_model() -> torch.nn.Module:
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 3),),
         backbone={
-            "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
+            "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
             "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
         }["InceptionResnetV2"],
         heads=[
@@ -146,13 +140,14 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("Train Data:")
 
     if mode == "debug":
+
         train_sample_ids = [
-            "0", "6", "7", "9", "15",  # class s
-            "1", "2", "3", "4", "5",  # class b
+            100000, 349997, 100009, 100008, 100007,  # class s
+            100001, 100002, 100003, 349996, 349995,  # class b
         ]
         validation_sample_ids = [
-            "31", "32", "36",  # class s
-            "33", "34", "35",  # class b
+            100036, 100037, 100038,  # class s
+            100033, 100034, 100035,  # class b
         ]
 
     else:
@@ -191,7 +186,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     sampler = BatchSamplerDefault(
         dataset=train_dataset,
         balanced_class_name="data.label",
-        num_balanced_classes=2,
+        num_balanced_classes=3,
         batch_size=train_common_params["data.batch_size"],
     )
 
@@ -240,7 +235,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #       monitor: the metric name to track
     #       mode: either consider the "min" value to be best or the "max" value to be the best
     # =========================================================================================================
-    class_names = ["s", "b"]
+    class_names = ["CLASS_0", "CLASS_1", "CLASS_2"]
     train_metrics = OrderedDict(
         [
             # will apply argmax
@@ -458,7 +453,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "infer", "eval"]
 
     # train
     if "train" in RUNNING_MODES:
