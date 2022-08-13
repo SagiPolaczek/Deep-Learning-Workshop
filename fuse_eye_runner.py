@@ -61,8 +61,8 @@ from fuse_eye import EYE
 ##########################################
 # Debug modes
 ##########################################
-mode = "default"  # Options: 'default', 'debug'. See details in FuseDebug
 run_local = True # set 'False' if running server
+mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
 ##########################################
@@ -73,7 +73,7 @@ NUM_GPUS = 1
 # switch to os.environ (?)
 if run_local:
     ROOT = "./_examples/eye"
-    DATA_DIR = "./DLW/data/raw_data/eye_movements.arff"
+    DATA_DIR = "./data/raw_data/eye_movements.arff"
 else:
     ROOT = "/tmp/_sagi/_examples/eye"
     DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
@@ -111,7 +111,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
 # ===============
 TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 50  # TODO raise
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
-TRAIN_COMMON_PARAMS["trainer.accelerator"] = "gpu"  # change to gpu when running on the server
+TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 TRAIN_COMMON_PARAMS["trainer.ckpt_path"] = None
 
 # ===============
@@ -168,44 +168,43 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("Train Data:")
 
     if mode == "debug":
-
-        train_sample_ids = [
-            "0", "1", "2", "3", "4",  # class 0
-            "91", "92", "93", "94", "95",  # class 1
-            "10931", "10932", "10933", "10934", "10935"  # class 2
+        print("GO DEBUG!")
+        sample_ids = [
+            "0", "1", "2", "3", "4", "19", "20", "21",  # class 0
+            "91", "92", "93", "94", "95", "28", "27", "26", # class 1
+            "10931", "10932", "10933", "10934", "10935", "6", "7", "8", # class 2
         ]
-        validation_sample_ids = [
-            "19", "20", "21",  # class 0
-            "28", "27", "26",  # class 1
-            "6", "7", "8",  # class 2
-        ]
-
+        TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1
     else:
+        sample_ids = None
 
-        ## TODO - list your sample ids:
-        # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
-        #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
-        all_dataset = EYE.dataset(
-            paths["data_dir"],
-            paths["cache_dir"],
-            reset_cache=False,
-            num_workers=train_common_params["data.train_num_workers"],
-            samples_ids=train_common_params["data.samples_ids"],
-        )
+    train_common_params["data.samples_ids"] = sample_ids # temp and ugly
 
-        folds = dataset_balanced_division_to_folds(
-            dataset=all_dataset,
-            output_split_filename=paths["data_split_filename"],
-            keys_to_balance=["data.label"],
-            nfolds=train_common_params["data.num_folds"],
-        )
 
-        train_sample_ids = []
-        for fold in train_common_params["data.train_folds"]:
-            train_sample_ids += folds[fold]
-        validation_sample_ids = []
-        for fold in train_common_params["data.validation_folds"]:
-            validation_sample_ids += folds[fold]
+    ## TODO - list your sample ids:
+    # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
+    #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
+    all_dataset = EYE.dataset(
+        paths["data_dir"],
+        paths["cache_dir"],
+        reset_cache=False,
+        num_workers=train_common_params["data.train_num_workers"],
+        samples_ids=train_common_params["data.samples_ids"],
+    )
+
+    folds = dataset_balanced_division_to_folds(
+        dataset=all_dataset,
+        output_split_filename=paths["data_split_filename"],
+        keys_to_balance=["data.label"],
+        nfolds=train_common_params["data.num_folds"],
+    )
+
+    train_sample_ids = []
+    for fold in train_common_params["data.train_folds"]:
+        train_sample_ids += folds[fold]
+    validation_sample_ids = []
+    for fold in train_common_params["data.validation_folds"]:
+        validation_sample_ids += folds[fold]
 
     train_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=train_sample_ids)
 
@@ -332,8 +331,10 @@ INFER_COMMON_PARAMS = {}
 INFER_COMMON_PARAMS["data.num_workers"] = TRAIN_COMMON_PARAMS["data.train_num_workers"]
 INFER_COMMON_PARAMS["data.batch_size"] = 4
 INFER_COMMON_PARAMS["infer_filename"] = os.path.join(PATHS["inference_dir"], "validation_set_infer.pickle")
-INFER_COMMON_PARAMS["checkpoint"] = "best"  # Fuse TIP: possible values are 'best', 'last' or epoch_index.
+INFER_COMMON_PARAMS["checkpoint"] = "best_epoch.ckpt"  # Fuse TIP: possible values are 'best', 'last' or epoch_index.
 INFER_COMMON_PARAMS["data.infer_folds"] = [4]  # infer validation set
+INFER_COMMON_PARAMS["trainer.num_devices"] = TRAIN_COMMON_PARAMS["trainer.num_devices"]
+INFER_COMMON_PARAMS["trainer.accelerator"] = TRAIN_COMMON_PARAMS["trainer.accelerator"]
 
 ######################################
 # Inference Template
@@ -342,7 +343,7 @@ INFER_COMMON_PARAMS["data.infer_folds"] = [4]  # infer validation set
 
 def run_infer(paths: dict, infer_common_params: dict) -> None:
     create_dir(paths["inference_dir"])
-    infer_file = os.path.join(paths["inference_dir"], infer_common_params["infer_filename"])
+    infer_file = INFER_COMMON_PARAMS["infer_filename"]
     checkpoint_file = os.path.join(paths["model_dir"], infer_common_params["checkpoint"])
 
     ## Logger
@@ -364,20 +365,12 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     ## Create dataloader
     infer_dataloader = DataLoader(
         dataset=infer_dataset,
-        shuffle=False,
-        drop_last=False,
-        batch_sampler=None,
         batch_size=infer_common_params["data.batch_size"],
         num_workers=infer_common_params["data.num_workers"],
         collate_fn=CollateDefault(),
     )
 
-    # TODO - define / create a model
-    model = ModelMultiHead(
-        conv_inputs=(("data.input.input_0.tensor", 1),),
-        backbone="TODO",  # Reference: BackboneInceptionResnetV2
-        heads=["TODO"],  # References: HeadGlobalPoolingClassifier, HeadDenseSegmentation
-    )
+    model = create_model()
 
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
@@ -385,11 +378,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     )
 
     # set the prediction keys to extract and dump into file (the ones used be the evaluation function).
-    pl_module.set_predictions_keys(
-        [
-            # TODO
-        ]
-    )
+    pl_module.set_predictions_keys(["model.output.head_0", "data.label"])
 
     # create a trainer instance and predict
     pl_trainer = pl.Trainer(
@@ -415,7 +404,7 @@ EVAL_COMMON_PARAMS["infer_filename"] = INFER_COMMON_PARAMS["infer_filename"]
 
 
 def run_eval(paths: dict, eval_common_params: dict) -> None:
-    infer_file = os.path.join(paths["inference_dir"], eval_common_params["infer_filename"])
+    infer_file = eval_common_params["infer_filename"]
 
     fuse_logger_start(output_path=None, console_verbose_level=logging.INFO)
     lgr = logging.getLogger("Fuse")
