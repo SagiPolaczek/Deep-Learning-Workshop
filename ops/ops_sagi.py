@@ -70,9 +70,9 @@ class OpConvImageKernel(OpBase):
         image = signal.convolve2d(self._base_image, kernel)
 
         sample_dict[key_out] = image
-        print(f"DEBUG: unique image values = {np.unique(image)}")
-        print(f"DEBUG: image shape = {image.shape}")
-        print(f"DEBUG: image = {image}")
+        # print(f"DEBUG: unique image values = {np.unique(image)}")
+        # print(f"DEBUG: image shape = {image.shape}")
+        # print(f"DEBUG: image = {image}")
         return sample_dict
         
 
@@ -90,6 +90,6 @@ class OpSubtractMean(OpBase):
         mean = np.mean(arr)
         arr -= mean
 
-        print(f"DEBUG: arr mean = {mean}")
+        # print(f"DEBUG: arr mean = {mean}")
         sample_dict[key] = arr
         return sample_dict

@@ -20,19 +20,22 @@ Created on June 30, 2021
 import os
 from typing import OrderedDict
 import logging
+import copy
 
 import torch
 import pytorch_lightning as pl
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
+import torch.nn.functional as F
 
 from fuse.utils.utils_debug import FuseDebug
 import fuse.utils.gpu as GPU
 from fuse.utils.utils_logger import fuse_logger_start
-from fuse.utils.file_io.file_io import create_dir, save_dataframe
+from fuse.utils.file_io.file_io import create_dir, save_dataframe, load_pickle
 from fuse.data.utils.split import dataset_balanced_division_to_folds
 
-
+from fuse.eval.metrics.classification.metrics_thresholding_common import MetricApplyThresholds
+from fuse.eval.metrics.classification.metrics_classification_common import MetricAccuracy, MetricAUCROC, MetricROCCurve
 from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.datasets.dataset_default import DatasetDefault
 from fuse.data.pipelines.pipeline_default import PipelineDefault
@@ -46,6 +49,7 @@ from fuse.dl.models import ModelMultiHead
 from fuse.dl.lightning.pl_module import LightningModuleDefault
 from fuse.dl.lightning.pl_funcs import convert_predictions_to_dataframe
 
+from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_eye import EYE
@@ -57,7 +61,7 @@ from fuse_eye import EYE
 ##########################################
 # Debug modes
 ##########################################
-mode = "default"  # Options: 'default', 'debug'. See details in FuseDebug
+mode = "debug"  # Options: 'default', 'debug'. See details in FuseDebug
 debug = FuseDebug(mode)
 
 ##########################################
@@ -84,20 +88,22 @@ TRAIN_COMMON_PARAMS = {}
 # ============
 # Data
 # ============
-TRAIN_COMMON_PARAMS["data.batch_size"] = 8
+TRAIN_COMMON_PARAMS["data.batch_size"] = 12
 TRAIN_COMMON_PARAMS["data.train_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [3]
+TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
+
 
 # ===============
 # PL Trainer
 # ===============
 TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 10  # TODO raise
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
-TRAIN_COMMON_PARAMS["trainer.accelerator"] = "gpu"
+TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu"  # change to gpu when running on the server
 TRAIN_COMMON_PARAMS["trainer.ckpt_path"] = None
 
 # ===============
@@ -114,17 +120,17 @@ TRAIN_COMMON_PARAMS["opt.weight_decay"] = 1e-3
 def create_model() -> torch.nn.Module:
 
     model = ModelMultiHead(
-        conv_inputs=(("data.input.img", 3),),
+        conv_inputs=(("data.input.img", 1),),
         backbone={
             "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
-            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
+            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43, pretrained_weights_url=None),
         }["InceptionResnetV2"],
         heads=[
             HeadGlobalPoolingClassifier(
                 head_name="head_0",
                 # dropout_rate=dropout_rate,
-                conv_inputs=[("model.backbone_features", 1536)],  # change if use resnet, i think to 512, need to double check
-                num_classes=2,
+                conv_inputs=[("model.backbone_features", 1536)],  # change if use resnet, I think to 512, need to double check
+                num_classes=3,
                 pooling="avg",
             ),
         ],
@@ -153,41 +159,51 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     print("Train Data:")
 
-    ## TODO - list your sample ids:
-    # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
-    #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
-    all_dataset = EYE.dataset(
-        paths["data_dir"],
-        paths["cache_dir"],
-        reset_cache=False,
-        num_workers=train_common_params["data.train_num_workers"],
-        samples_ids=train_common_params["data.samples_ids"],
-    )
+    if mode == "debug":
 
-    folds = dataset_balanced_division_to_folds(
-        dataset=all_dataset,
-        output_split_filename=paths["data_split_filename"],
-        keys_to_balance=["data.label"],
-        nfolds=train_common_params["data.num_folds"],
-    )
+        train_sample_ids = [
+            0, 1, 2, 3, 4,  # class 0
+            91, 92, 93, 94, 95,  # class 1
+            10931, 10932, 10933, 10934, 10935  # class 2
+        ]
+        validation_sample_ids = [
+            19, 20, 21,  # class 0
+            28, 27, 26,  # class 1
+            6, 7, 8,  # class 2
+        ]
 
-    train_sample_ids = []
-    for fold in train_common_params["data.train_folds"]:
-        train_sample_ids += folds[fold]
-    validation_sample_ids = []
-    for fold in train_common_params["data.validation_folds"]:
-        validation_sample_ids += folds[fold]
+    else:
+
+        ## TODO - list your sample ids:
+        # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
+        #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
+        all_dataset = EYE.dataset(
+            paths["data_dir"],
+            paths["cache_dir"],
+            reset_cache=False,
+            num_workers=train_common_params["data.train_num_workers"],
+            samples_ids=train_common_params["data.samples_ids"],
+        )
+
+        folds = dataset_balanced_division_to_folds(
+            dataset=all_dataset,
+            output_split_filename=paths["data_split_filename"],
+            keys_to_balance=["data.label"],
+            nfolds=train_common_params["data.num_folds"],
+        )
+
+        train_sample_ids = []
+        for fold in train_common_params["data.train_folds"]:
+            train_sample_ids += folds[fold]
+        validation_sample_ids = []
+        for fold in train_common_params["data.validation_folds"]:
+            validation_sample_ids += folds[fold]
 
     train_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=train_sample_ids)
 
     ## Create batch sampler
-    # Fuse TIPs:
-    # 1. You don't have to balance according the classification labels, any categorical value will do.
-    #    Use balanced_class_name to select the categorical value
-    # 2. You don't have to equally balance between the classes.
-    #    Use balanced_class_weights to specify the number of required samples in a batch per each class
-    # 3. Use mode to specify probabilities rather then exact number of samples from  a class in each batch
     print("- Create sampler:")
+    sampler = None  # Debug, delete when finished
     sampler = BatchSamplerDefault(
         dataset=train_dataset,
         balanced_class_name="data.label",
@@ -240,6 +256,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #       monitor: the metric name to track
     #       mode: either consider the "min" value to be best or the "max" value to be the best
     # =========================================================================================================
+    class_names = ["CLASS_0", "CLASS_1", "CLASS_2"]
     train_metrics = OrderedDict(
         [
             ("op", MetricApplyThresholds(pred="model.output.head_0")),  # will apply argmax
@@ -434,7 +451,7 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 if __name__ == "__main__":
     # uncomment if you want to use specific gpus instead of automatically looking for free ones
     force_gpus = None  # [0]
-    GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
+    # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
 

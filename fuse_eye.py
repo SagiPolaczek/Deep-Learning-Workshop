@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 from fuse.data import DatasetDefault
-from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy
+from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy, OpToInt
 from fuse.data.utils.sample import get_sample_id
 from fuse.data.pipelines.pipeline_default import PipelineDefault
 from fuse.data.ops.op_base import OpBase
@@ -18,7 +18,7 @@ from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
 from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintTypes
 from fuseimg.data.ops.ops_debug import OpVis2DImage
 
 from fuse.utils import NDict
@@ -39,7 +39,7 @@ class OpEYESampleIDDecode(OpBase):
         """
         decodes sample id
         """
-
+        # sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
 
 
@@ -130,12 +130,22 @@ class EYE:
                 # Step 5: Convolve with base image - sagi
                 (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
 
-                # DEBUG
-                (OpPrintKeysContent(num_samples=1), dict(keys=None)),
-                (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
                 # Load label TODO
                 # (OpLambda(func=derive_label), dict()),
+                (OpReadDataframe(
+                        data=df,
+                        key_column = None,  # should be default None.. maybe fix in fuse
+                        columns_to_extract=["label"],
+                    ),
+                    dict(prefix="data")),
+
+                (OpToInt(), dict(key="data.label")),
+                # DEBUG
+                (OpPrintTypes(num_samples=1), dict()),
+                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
+                # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
+
             ],
         )
         return static_pipeline
@@ -167,6 +177,7 @@ class EYE:
         num_workers: int = 10,
         append_dyn_pipeline: Optional[Sequence[Tuple[OpBase, dict]]] = None,
         samples_ids: Optional[Sequence[Hashable]] = None,
+        use_cacher: bool = True,
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -186,19 +197,22 @@ class EYE:
         dynamic_pipeline = EYE.dynamic_pipeline(train, append=append_dyn_pipeline)
 
         # TODO: delete or reactivate
-        # cacher = SamplesCacher(
-        #     f"eye_cache_ver{EYE.DATASET_VER}",
-        #     static_pipeline,
-        #     [cache_path],
-        #     restart_cache=reset_cache,
-        #     workers=num_workers,
-        # )
+        cacher = SamplesCacher(
+            f"eye_cache_ver{EYE.DATASET_VER}",
+            static_pipeline,
+            [cache_path],
+            restart_cache=reset_cache,
+            workers=num_workers,
+        )
 
+        if not use_cacher:  # debugging
+            cacher = None
+        
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
             static_pipeline=static_pipeline,
             dynamic_pipeline=dynamic_pipeline,
-            cacher=None,
+            cacher=cacher,
         )
 
         my_dataset.create()
@@ -252,7 +266,7 @@ if __name__ == "__main__":
 
     create_dir("./cacher")
     dataset = EYE.dataset(
-        data_dir, cache_dir, reset_cache=True, samples_ids=None
+        data_dir, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
     )
     assert len(dataset) == 10936
 
