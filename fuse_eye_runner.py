@@ -62,14 +62,22 @@ from fuse_eye import EYE
 # Debug modes
 ##########################################
 mode = "default"  # Options: 'default', 'debug'. See details in FuseDebug
+run_local = True # set 'False' if running server
 debug = FuseDebug(mode)
 
 ##########################################
 # Output Paths
 ##########################################
 NUM_GPUS = 1
-ROOT = "/tmp/_sagi/_examples/eye"
-DATA_DIR = "sagi_dl_workshop/data/raw_data/eye_movements.arff"
+
+# switch to os.environ (?)
+if run_local:
+    ROOT = "./_examples/eye"
+    DATA_DIR = "./DLW/data/raw_data/eye_movements.arff"
+else:
+    ROOT = "/tmp/_sagi/_examples/eye"
+    DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
+
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
     "data_dir": DATA_DIR,
@@ -449,9 +457,10 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 # Run
 ######################################
 if __name__ == "__main__":
-    # uncomment if you want to use specific gpus instead of automatically looking for free ones
-    force_gpus = None  # [0]
-    GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
+    if not run_local:
+        # uncomment if you want to use specific gpus instead of automatically looking for free ones
+        force_gpus = None  # [0]
+        GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
 

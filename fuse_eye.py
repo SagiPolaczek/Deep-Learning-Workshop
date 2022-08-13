@@ -28,8 +28,7 @@ from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
 from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsqueeze3DFrom2D
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
-
-from ops.ops_shaked import OpReshapeVector, OpReshapeVector
+from ops.ops_shaked import OpReshapeVector
 from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor
 import skimage
 
@@ -242,17 +241,24 @@ class EYE:
 
 
 if __name__ == "__main__":
-    ROOT = "/tmp/_sagi/test_dataset"
+    run_local = True
+
+    # switch to os.environ (?)
+    if run_local:
+        ROOT = "./_examples/eye"
+        DATA_DIR = "./data/raw_data/eye_movements.arff"
+    else:
+        ROOT = "/tmp/_sagi/_examples/eye"
+        DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
+
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    data_dir = "sagi_dl_workshop/data/raw_data/eye_movements.arff"
-
-    sp = EYE.static_pipeline(data_dir)
+    sp = EYE.static_pipeline(DATA_DIR)
     # print(sp)
 
     create_dir("./cacher")
     dataset = EYE.dataset(
-        data_dir, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
+        DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
     )
     assert len(dataset) == 10936
 
