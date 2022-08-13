@@ -93,3 +93,21 @@ class OpSubtractMean(OpBase):
         # print(f"DEBUG: arr mean = {mean}")
         sample_dict[key] = arr
         return sample_dict
+
+
+class OpExpandTensor(OpBase):
+    """
+    Expand 2D Tensor into a 3D Tensor such that the first dim is empty
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, sample_dict: NDict, key: str):
+
+        tensor = sample_dict[key]
+        tensor = tensor[None, :, :]
+        # tensor = torch.unsqueeze(tensor, dim=0)  # Same
+
+        sample_dict[key] = tensor
+        return sample_dict

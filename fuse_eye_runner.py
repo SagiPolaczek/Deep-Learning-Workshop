@@ -122,7 +122,7 @@ def create_model() -> torch.nn.Module:
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 1),),
         backbone={
-            "Resnet18": BackboneResnet(pretrained=True, in_channels=1, name="resnet18"),
+            "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
             "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43, pretrained_weights_url=None),
         }["InceptionResnetV2"],
         heads=[
@@ -162,14 +162,14 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     if mode == "debug":
 
         train_sample_ids = [
-            0, 1, 2, 3, 4,  # class 0
-            91, 92, 93, 94, 95,  # class 1
-            10931, 10932, 10933, 10934, 10935  # class 2
+            "0", "1", "2", "3", "4",  # class 0
+            "91", "92", "93", "94", "95",  # class 1
+            "10931", "10932", "10933", "10934", "10935"  # class 2
         ]
         validation_sample_ids = [
-            19, 20, 21,  # class 0
-            28, 27, 26,  # class 1
-            6, 7, 8,  # class 2
+            "19", "20", "21",  # class 0
+            "28", "27", "26",  # class 1
+            "6", "7", "8",  # class 2
         ]
 
     else:
@@ -225,7 +225,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #### Validation data
     print("Validation Data:")
 
-    validation_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=validation_sample_ids)
+    validation_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids)
 
 
     ## Create dataloader

@@ -18,19 +18,19 @@ from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
 from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintTypes
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintTypes, OpPrintShapes
 from fuseimg.data.ops.ops_debug import OpVis2DImage
 
 from fuse.utils import NDict
 
 from fuseimg.data.ops.image_loader import OpLoadImage
 from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
-from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
+from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsqueeze3DFrom2D
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
 
 from ops.ops_shaked import OpReshapeVector, OpReshapeVectorV2
-from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean
+from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor
 import skimage
 
 
@@ -39,29 +39,11 @@ class OpEYESampleIDDecode(OpBase):
         """
         decodes sample id
         """
-        # sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
+
+        sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
+        # Cast the sample ids from integers to strings to match fuse's sampler
+        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
-
-
-def derive_label(sample_dict: NDict) -> NDict:
-    """
-    Takes the sample's ndict with the labels as key:value and assigns to sample_dict['data.label'] the index of the sample's class.
-    Also delete all the labels' keys from sample_dict.
-
-    for example:
-        If the sample contains {'MEL': 0, 'NV': 1, 'BCC': 0, 'AK': 0, ... }
-        will assign, sample_dict['data.label'] = 1 ('NV's index).
-        Afterwards the sample_dict won't contain the class' names & values.
-    """
-    classes_names = ["MEL", "NV", "BCC", "AK", "BKL", "DF", "VASC", "SCC"]
-
-    label = 0
-    for idx, cls_name in enumerate(classes_names):
-        if int(sample_dict[f"data.cls_labels.{cls_name}"]) == 1:
-            label = idx
-
-    sample_dict["data.label"] = label
-    return sample_dict
 
 
 class EYE:
@@ -109,6 +91,7 @@ class EYE:
                 (OpReadDataframe(
                         data=df,
                         key_column = None,
+                        key_name = "data.sample_id_as_int",
                         columns_to_extract=feature_columns,
                     ),
                     dict(prefix="data.feature")),
@@ -132,17 +115,18 @@ class EYE:
 
 
                 # Load label TODO
-                # (OpLambda(func=derive_label), dict()),
                 (OpReadDataframe(
                         data=df,
                         key_column = None,  # should be default None.. maybe fix in fuse
+                        key_name = "data.sample_id_as_int",
                         columns_to_extract=["label"],
                     ),
                     dict(prefix="data")),
 
                 (OpToInt(), dict(key="data.label")),
                 # DEBUG
-                (OpPrintTypes(num_samples=1), dict()),
+                (OpPrintShapes(num_samples=1), dict()),
+                # (OpPrintTypes(num_samples=1), dict()),
                 # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
@@ -163,6 +147,8 @@ class EYE:
         dynamic_pipeline = [
             # Convert to tensor
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
+            (OpExpandTensor(), dict(key="data.input.img")),
+            (OpPrintShapes(num_samples=1), dict()),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
