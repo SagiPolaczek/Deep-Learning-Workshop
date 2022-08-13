@@ -29,7 +29,7 @@ from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsque
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
 
-from ops.ops_shaked import OpReshapeVector, OpReshapeVectorV2
+from ops.ops_shaked import OpReshapeVector, OpReshapeVector
 from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor
 import skimage
 
@@ -105,7 +105,7 @@ class EYE:
 
 
                 # Step 4: reshape to kerenl - shuki
-                (OpReshapeVectorV2(), dict(key_in_vector="data.vector", key_out="data.kernel")),
+                (OpReshapeVector(), dict(key_in_vector="data.vector", key_out="data.kernel")),
 
                 # Step 4.1: subract mean
                 (OpSubtractMean(), dict(key="data.kernel")),
