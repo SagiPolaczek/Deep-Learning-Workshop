@@ -1,4 +1,4 @@
 pytorch
 numpy
 pandas
-scipy.stats
+fuse-med-ml
