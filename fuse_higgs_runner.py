@@ -8,6 +8,7 @@ import torch
 import pytorch_lightning as pl
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
+import torch.nn.functional as F
 
 from fuse.utils.utils_debug import FuseDebug
 import fuse.utils.gpu as GPU
@@ -45,7 +46,8 @@ from ops.ops_shaked import *
 ##########################################
 # Debug modes
 ##########################################
-mode = "debug"  # Options: 'default', 'debug'. See details in FuseDebug
+run_local = True  # set 'False' if running server
+mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
 ##########################################
@@ -72,7 +74,7 @@ TRAIN_COMMON_PARAMS = {}
 # ============
 # Data
 # ============
-TRAIN_COMMON_PARAMS["data.batch_size"] = 8
+TRAIN_COMMON_PARAMS["data.batch_size"] = 12
 TRAIN_COMMON_PARAMS["data.train_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
@@ -87,7 +89,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
 # ===============
 TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 10  # TODO raise
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
-TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu"
+TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 TRAIN_COMMON_PARAMS["trainer.ckpt_path"] = None
 
 # ===============
@@ -107,7 +109,7 @@ def create_model() -> torch.nn.Module:
         conv_inputs=(("data.input.img", 3),),
         backbone={
             "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
-            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
+            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43, pretrained_weights_url=None),
         }["InceptionResnetV2"],
         heads=[
             HeadGlobalPoolingClassifier(
@@ -458,7 +460,7 @@ if __name__ == "__main__":
     # GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     # Options: 'train', 'infer', 'eval'
-    RUNNING_MODES = ["train"]
+    RUNNING_MODES = ["train", "eval"]
 
     # train
     if "train" in RUNNING_MODES:

@@ -18,7 +18,7 @@ from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
 from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintShapes
 from fuseimg.data.ops.ops_debug import OpVis2DImage
 
 from fuse.utils import NDict
@@ -94,7 +94,7 @@ class HIGGS:
         # df = pd.DataFrame(data[0])
         data = pd.read_csv(
             "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv")
-        samples = range(data.shape[0])
+        samples = range(data.shape[0]).tolist()
         return samples
 
     @staticmethod
@@ -176,6 +176,8 @@ class HIGGS:
         dynamic_pipeline = [
             # Convert to tensor
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
+            (OpExpandTensor(), dict(key="data.input.img")),
+            (OpPrintShapes(num_samples=1), dict()),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
@@ -190,6 +192,7 @@ class HIGGS:
         num_workers: int = 10,
         append_dyn_pipeline: Optional[Sequence[Tuple[OpBase, dict]]] = None,
         samples_ids: Optional[Sequence[Hashable]] = None,
+        use_cacher: bool = True,
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -210,19 +213,22 @@ class HIGGS:
             train, append=append_dyn_pipeline)
 
         # TODO: delete or reactivate
-        # cacher = SamplesCacher(
-        #     f"higgs_cache_ver{HIGGS.DATASET_VER}",
-        #     static_pipeline,
-        #     [cache_path],
-        #     restart_cache=reset_cache,
-        #     workers=num_workers,
-        # )
+        cacher = SamplesCacher(
+            f"higgs_cache_ver{HIGGS.DATASET_VER}",
+            static_pipeline,
+            [cache_path],
+            restart_cache=reset_cache,
+            workers=num_workers,
+        )
+
+        if not use_cacher:  # debugging
+            cacher = None
 
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
             static_pipeline=static_pipeline,
             dynamic_pipeline=dynamic_pipeline,
-            cacher=None,
+            cacher=cacher,
         )
 
         my_dataset.create()
