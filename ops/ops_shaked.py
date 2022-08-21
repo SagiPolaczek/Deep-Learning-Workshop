@@ -41,3 +41,32 @@ class OpReshapeVector(OpBase):
 
         sample_dict[key_out] = res
         return sample_dict
+
+
+class OpHIGGSSampleIDDecode(OpBase):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, sample_dict: NDict) -> NDict:
+        """
+        decodes sample id
+        """
+
+        sample_dict["data.sample_id_as_int"] = int(
+            sample_dict["data.sample_id"])
+        # Cast the sample ids from integers to strings to match fuse's sampler
+        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
+        return sample_dict
+
+
+class OpBasicFeatureSelection(OpBase):
+    def __call__(self, sample_dict: NDict) -> NDict:
+        """
+        decodes sample id
+        """
+
+        sample_dict["data.sample_id_as_int"] = int(
+            sample_dict["data.sample_id"])
+        # Cast the sample ids from integers to strings to match fuse's sampler
+        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
+        return sample_dict

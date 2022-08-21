@@ -55,7 +55,7 @@ debug = FuseDebug(mode)
 ##########################################
 NUM_GPUS = 1
 ROOT = "./_examples/higgs"
-DATA_DIR = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
+DATA_DIR = "./data/raw_data/training.csv"
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
     "data_dir": DATA_DIR,
@@ -212,7 +212,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("Validation Data:")
 
     validation_dataset = HIGGS.dataset(
-        paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=validation_sample_ids)
+        paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids)
 
     # Create dataloader
     validation_dataloader = DataLoader(

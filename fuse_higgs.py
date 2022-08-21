@@ -34,19 +34,6 @@ from ops.ops_shaked import *
 import skimage
 
 
-class OpHIGGSSampleIDDecode(OpBase):
-    def __call__(self, sample_dict: NDict) -> NDict:
-        """
-        decodes sample id
-        """
-
-        sample_dict["data.sample_id_as_int"] = int(
-            sample_dict["data.sample_id"])
-        # Cast the sample ids from integers to strings to match fuse's sampler
-        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
-        return sample_dict
-
-
 def derive_label(sample_dict: NDict) -> NDict:
     """
     Takes the sample's ndict with the labels as key:value and assigns to sample_dict['data.label'] the index of the sample's class.
@@ -89,18 +76,18 @@ class HIGGS:
     def sample_ids(data_path: str) -> List[str]:
         """
         Gets the samples ids in trainset.
-        #"""
+        """
         # data = arff.loadarff(data_path)
         # df = pd.DataFrame(data[0])
         data = pd.read_csv(
-            "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv")
-        samples = range(data.shape[0]).tolist()
+            "./data/raw_data/training.csv")
+        samples = list(range(data.shape[0]))
         return samples
 
     @staticmethod
     def static_pipeline(data_path: str) -> PipelineDefault:
         df = pd.read_csv(
-            "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv")
+            "./data/raw_data/training.csv")
         df.drop(["EventId"], axis=1, inplace=True)
         # TODO: CHANGE THIS APPLY FUNC
         df["label"] = df["Label"].apply(lambda val: 1 if val == "s" else 0)
@@ -276,18 +263,27 @@ class HIGGS:
 
 
 if __name__ == "__main__":
-    ROOT = "./test_dataset"
+    run_local = True
+
+    # switch to os.environ (?)
+    if run_local:
+        ROOT = "./_examples/higgs"
+        DATA_DIR = "./data/raw_data/training.csv"
+    else:
+        ROOT = "./_examples/eye"
+        DATA_DIR = ".data/raw_data/training.csv"
+
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    data_dir = "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/training.csv"
-
-    sp = HIGGS.static_pipeline(data_dir)
+    sp = HIGGS.static_pipeline(DATA_DIR)
     # print(sp)
 
     create_dir("./cacher")
     dataset = HIGGS.dataset(
-        data_dir, cache_dir, reset_cache=True, samples_ids=None
+        DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
     )
+    assert len(dataset) == 250000
 
     sample = dataset[0]
-    sample.print_tree()
+    # sample.print_tree()
+    print("DONE!")
