@@ -131,7 +131,7 @@ def create_model() -> torch.nn.Module:
         conv_inputs=(("data.input.img", 1),),
         backbone={
             "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
-            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43, pretrained_weights_url=None),
+            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43),
         }["InceptionResnetV2"],
         heads=[
             HeadGlobalPoolingClassifier(

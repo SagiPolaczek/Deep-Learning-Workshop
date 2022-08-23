@@ -32,26 +32,26 @@ from ops.ops_shaked import OpReshapeVector
 from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor
 import skimage
 
+from catboost.datasets import epsilon
 
-class OpEYESampleIDDecode(OpBase):
+
+class OpEPSILONSampleIDDecode(OpBase):
     def __call__(self, sample_dict: NDict) -> NDict:
         """
         decodes sample id
         """
 
-        sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
-        # Cast the sample ids from integers to strings to match fuse's sampler
-        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
+        sid = sample_dict["data.sample_id"]
+
         return sample_dict
 
 
-class EYE:
-    """
-    TODO
-    """
 
-    # bump whenever the static pipeline modified
-    DATASET_VER = 0
+
+epsilon_train, epsilon_test = epsilon()
+
+
+class EPSILON:
 
     @staticmethod
     def download(
@@ -62,14 +62,13 @@ class EYE:
         """
         pass
 
+
     @staticmethod
     def sample_ids(data_path: str) -> List[str]:
         """
         Gets the samples ids in trainset.
-        #"""
-        # data = arff.loadarff(data_path)
-        # df = pd.DataFrame(data[0])
-
+        """
+        
         samples = [i for i in range(10936)]
         return samples
 
@@ -203,65 +202,3 @@ class EYE:
         my_dataset.create()
         return my_dataset
 
-    def get_feature_columns() -> List[str]:
-        
-
-        list_of_columns = [
-            # "lineNo",    -> id same as index
-            "assgNo",
-            "fixcount",
-            "firstPassCnt",
-            "P1stFixation",
-            "P2stFixation",
-            "prevFixDur",
-            "firstfixDur",
-            "firstPassFixDur",
-            "nextFixDur",
-            "firstSaccLen",
-            "lastSaccLen",
-            "prevFixPos",
-            "landingPos",
-            "leavingPos",
-            "totalFixDur",
-            "meanFixDur",
-            "nRegressFrom",
-            "regressLen",
-            "nextWordRegress",
-            "regressDur",
-            "pupilDiamMax",
-            "pupilDiamLag",
-            "timePrtctg",
-            "nWordsInTitle",
-            # "titleNo",     -> temp for dim k^2
-            "wordNo",
-            # "label",    -> label column
-        ]
-
-        return list_of_columns
-
-
-if __name__ == "__main__":
-    run_local = True
-
-    # switch to os.environ (?)
-    if run_local:
-        ROOT = "./_examples/eye"
-        DATA_DIR = "./data/raw_data/eye_movements.arff"
-    else:
-        ROOT = "/tmp/_sagi/_examples/eye"
-        DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
-
-    cache_dir = os.path.join(ROOT, "cache_dir")
-
-    sp = EYE.static_pipeline(DATA_DIR)
-    # print(sp)
-
-    create_dir("./cacher")
-    dataset = EYE.dataset(
-        DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
-    )
-    assert len(dataset) == 10936
-
-    sample = dataset[0]
-    # sample.print_tree()
-    print("DONE!")
