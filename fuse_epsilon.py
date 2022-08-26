@@ -29,7 +29,7 @@ from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsque
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
 from ops.ops_shaked import OpReshapeVector
-from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor
+from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel
 import skimage
 
 from catboost.datasets import epsilon
@@ -41,17 +41,16 @@ class OpEPSILONSampleIDDecode(OpBase):
         decodes sample id
         """
 
-        sid = sample_dict["data.sample_id"]
-
+        sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
+        # Cast the sample ids from integers to strings to match fuse's sampler
+        sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
 
 
 
-
-epsilon_train, epsilon_test = epsilon()
-
-
 class EPSILON:
+
+    DATASET_VER = 0
 
     @staticmethod
     def download(
@@ -64,30 +63,35 @@ class EPSILON:
 
 
     @staticmethod
-    def sample_ids(data_path: str) -> List[str]:
+    def sample_ids(train: bool = True) -> List[str]:
         """
         Gets the samples ids in trainset.
         """
-        
-        samples = [i for i in range(10936)]
+        if train:
+            samples = [i for i in range(400000)]
+        else:
+            samples = [i for i in range(100000)]
         return samples
 
     @staticmethod
-    def static_pipeline(data_path: str) -> PipelineDefault:
-        feature_columns = EYE.get_feature_columns()
-        data = arff.loadarff(data_path)
-        df = pd.DataFrame(data[0])
-        base_image = skimage.data.shepp_logan_phantom() # Temp
+    def static_pipeline(data: pd.DataFrame) -> PipelineDefault:
+        """
+        :param data: a table such that the first column is the label, and all the other 2000 are features
+        """
+        # needs to be str if data is loaded via 'read_csv'
+        feature_columns = [ str(_) for _ in range(1, 2001)]  # All 2000 features. 
+        label_column = ["0"]
 
         static_pipeline = PipelineDefault(
             "static",
             [
                 # Step 1: Decoding sample ID TODO delete (?)
-                (OpEYESampleIDDecode(), dict()),
+                (OpEPSILONSampleIDDecode(), dict()),
+                (OpPrintKeysContent(num_samples=1), dict(keys=None)),
 
                 # Step 2: load sample's features
                 (OpReadDataframe(
-                        data=df,
+                        data=data,
                         key_column = None,
                         key_name = "data.sample_id_as_int",
                         columns_to_extract=feature_columns,
@@ -97,35 +101,27 @@ class EPSILON:
                 # Step 2.5: delete feature to match k^2
                 # OpFunc
 
-                # Step 3: load all the features into a list
-                (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
-                (OpToNumpy(), dict(key="data.vector", dtype=float)),
+                # Step 3: load all the features into a numpy array
+                (OpKeysToList(prefix="data.feature"), dict(key_out="data.input.vector")),
+                (OpToNumpy(), dict(key="data.input.vector", dtype=float)),
 
-
-                # Step 4: reshape to kerenl - shuki
-                (OpReshapeVector(), dict(key_in_vector="data.vector", key_out="data.kernel")),
-
-                # Step 4.1: subract mean
-                (OpSubtractMean(), dict(key="data.kernel")),
-
-                # Step 5: Convolve with base image - sagi
-                (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
-
-
-                # Load label TODO
+                # Step 4: Load label 
                 (OpReadDataframe(
-                        data=df,
+                        data=data,
                         key_column = None,  # should be default None.. maybe fix in fuse
                         key_name = "data.sample_id_as_int",
-                        columns_to_extract=["label"],
+                        columns_to_extract=label_column,
                     ),
                     dict(prefix="data")),
+                
+                (OpRenameKey(), dict(key_old="data.0", key_new="data.label")),
+                (OpEpsilonRenameLabel(), dict(key="data.label")),
 
                 (OpToInt(), dict(key="data.label")),
                 # DEBUG
                 # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
-                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
+                (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
             ],
@@ -144,9 +140,10 @@ class EPSILON:
 
         dynamic_pipeline = [
             # Convert to tensor
-            (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
-            (OpExpandTensor(), dict(key="data.input.img")),
-            (OpPrintShapes(num_samples=1), dict()),
+            (OpToTensor(), dict(key="data.input.vector", dtype=torch.float)),
+            # (OpExpandTensor(), dict(key="data.input.vector")),
+            # (OpExpandTensor(), dict(key="data.input.vector")),
+            # (OpPrintShapes(num_samples=1), dict()),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
@@ -154,8 +151,9 @@ class EPSILON:
 
     @staticmethod
     def dataset(
-        data_path: str,
         cache_path: str,
+        data: Optional[pd.DataFrame] = None,
+        data_path: Optional[str] = None,
         train: bool = False,
         reset_cache: bool = False,
         num_workers: int = 10,
@@ -174,15 +172,22 @@ class EPSILON:
         # Download data if doesn't exist
         # TODO (?)
 
-        if samples_ids is None:
-            samples_ids = EYE.sample_ids(data_path)
+        assert (data is not None and data_path is None) or (data is None and data_path is not None)
+        
+        if data_path:
+            # read data
+            data = None # TODO
+            pass
 
-        static_pipeline = EYE.static_pipeline(data_path)
-        dynamic_pipeline = EYE.dynamic_pipeline(train, append=append_dyn_pipeline)
+        if samples_ids is None:
+            samples_ids = EPSILON.sample_ids()
+
+        static_pipeline = EPSILON.static_pipeline(data=data)
+        dynamic_pipeline = EPSILON.dynamic_pipeline(train, append=append_dyn_pipeline)
 
         # TODO: delete or reactivate
         cacher = SamplesCacher(
-            f"eye_cache_ver{EYE.DATASET_VER}",
+            f"eye_cache_ver{EPSILON.DATASET_VER}",
             static_pipeline,
             [cache_path],
             restart_cache=reset_cache,
@@ -202,3 +207,38 @@ class EPSILON:
         my_dataset.create()
         return my_dataset
 
+
+if __name__ == "__main__":
+    run_local = True
+
+    # switch to os.environ (?)
+    if run_local:
+        ROOT = "./_examples/epsilon"
+        DATA_DIR = ""
+    else:
+        ROOT = "/tmp/_sagi/_examples/epsilon"
+        DATA_DIR=""
+
+    cache_dir = os.path.join(ROOT, "cache_dir")
+
+    debug = True
+    if debug:
+        print("Loading debug data")
+        train_data = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
+        test_data = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
+        print("Done loading debug data!")
+
+    else:
+        print("Downloading data...")
+        train_data, test_data = epsilon()
+        print("Done downloading data!")
+
+    # Testing sp initialization
+    sp = EPSILON.static_pipeline(data=train_data)
+
+    dataset = EPSILON.dataset(
+        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
+    )
+
+    sample = dataset[0]
+    print("Done!")

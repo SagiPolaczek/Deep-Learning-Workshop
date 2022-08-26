@@ -19,13 +19,14 @@ class OpKeysToList(OpBase):
 
     """
 
-    def __init__(self, keys: Optional[List[str]] = None, prefix: Optional[str] = None):
+    def __init__(self, keys: Optional[List[str]] = None, prefix: Optional[str] = None, delete_keys: bool = True):
         """
         TODO
         """
         super().__init__()
         self._keys = keys
         self._prefix = prefix
+        self._delete_keys = delete_keys
 
         if keys == None and prefix == None:
             raise Exception("TODO")
@@ -49,6 +50,8 @@ class OpKeysToList(OpBase):
             for key in sample_dict.keypaths():
                 if key.startswith(self._prefix):
                     res.append(sample_dict[key])
+                    if self._delete_keys:
+                        del sample_dict[key]
 
         sample_dict[key_out] = res
         return sample_dict
@@ -106,8 +109,47 @@ class OpExpandTensor(OpBase):
     def __call__(self, sample_dict: NDict, key: str):
 
         tensor = sample_dict[key]
-        tensor = tensor[None, :, :]
-        # tensor = torch.unsqueeze(tensor, dim=0)  # Same
+        # tensor = tensor[None, :, :]
+        tensor = torch.unsqueeze(tensor, dim=0)  # Same
 
         sample_dict[key] = tensor
+        return sample_dict
+
+
+class OpRenameKey(OpBase):
+    """
+    Rename key in the sample dict.
+
+    Example of use:
+
+    """
+
+    def __call__(self, sample_dict: NDict, key_old: str, key_new: str, delete_old: bool = True):
+        """
+        
+        :param key_old:
+        :param key_new:
+        :param delete_old:
+        """
+
+        sample_dict[key_new] = sample_dict[key_old]
+
+        if delete_old:
+            del sample_dict[key_old]
+
+        return sample_dict
+
+class OpEpsilonRenameLabel(OpBase):
+    """
+    rename labels: -1 -> 0
+                    1 -> 1
+    """
+    def __call__(self, sample_dict: NDict, key: str) -> NDict:
+        """
+        :param key: key for label
+        """
+        label = sample_dict[key]
+        if label == -1:
+            sample_dict[key] = 0
+
         return sample_dict
