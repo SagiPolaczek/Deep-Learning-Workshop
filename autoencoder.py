@@ -4,6 +4,9 @@ from typing import Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fuse.dl.losses import LossBase
+from fuse.utils.ndict import NDict
+
 
 
 class SingleConv(nn.Module):
@@ -78,3 +81,27 @@ class Decoder(nn.Module):
         return x
 
 
+class OurCustomLoss(LossBase):
+        '''
+        TODO
+        '''
+        def __init__(self, key_encoding: str, mode: str, weight: float = 1.0):
+            super().__init__()
+            self._key_encoding = key_encoding
+            self._mode = mode
+            self._weight = weight
+
+            supported_modes = ["std"]
+            assert mode in supported_modes, "not supported mode."                
+
+        def forward(self, batch_dict:NDict) -> torch.Tensor:
+            # extract params from batch_dict
+            encoding: torch.Tensor = batch_dict[self._key_encoding]
+            encoding = encoding.clone().detach()
+
+            if self._mode == "std":
+                loss = torch.std(encoding)
+                # loss = torch.Tensor([0.001])[0]
+
+            loss *= self._weight
+            return loss

@@ -29,8 +29,9 @@ from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsque
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 
 from ops.ops_shaked import OpReshapeVector
-from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel
+from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide
 import skimage
+from fuseimg.data.ops.shape_ops import OpPad
 
 from catboost.datasets import epsilon
 
@@ -87,7 +88,7 @@ class EPSILON:
             [
                 # Step 1: Decoding sample ID TODO delete (?)
                 (OpEPSILONSampleIDDecode(), dict()),
-                (OpPrintKeysContent(num_samples=1), dict(keys=None)),
+                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
 
                 # Step 2: load sample's features
                 (OpReadDataframe(
@@ -121,7 +122,7 @@ class EPSILON:
                 # DEBUG
                 # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
-                (OpPrintKeysContent(num_samples=1), dict(keys=None)),
+                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
 
             ],
@@ -139,11 +140,16 @@ class EPSILON:
         """
 
         dynamic_pipeline = [
+            # Pad and reshape to 2D matrix
+            (OpPadVecInOneSide(), dict(key_in="data.input.vector", key_out="data.input.vector_padded", padding=25)),
+            (OpReshapeVector(), dict(key_in_vector="data.input.vector_padded", key_out="data.input.sqr_vector")),
+
             # Convert to tensor
             (OpToTensor(), dict(key="data.input.vector", dtype=torch.float)),
-            # (OpExpandTensor(), dict(key="data.input.vector")),
-            # (OpExpandTensor(), dict(key="data.input.vector")),
+            (OpToTensor(), dict(key="data.input.sqr_vector", dtype=torch.float)),
             # (OpPrintShapes(num_samples=1), dict()),
+            (OpExpandTensor(), dict(key="data.input.sqr_vector")),
+            # (OpExpandTensor(), dict(key="data.input.vector")),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
@@ -180,7 +186,7 @@ class EPSILON:
             pass
 
         if samples_ids is None:
-            samples_ids = EPSILON.sample_ids()
+            samples_ids = EPSILON.sample_ids(train)
 
         static_pipeline = EPSILON.static_pipeline(data=data)
         dynamic_pipeline = EPSILON.dynamic_pipeline(train, append=append_dyn_pipeline)

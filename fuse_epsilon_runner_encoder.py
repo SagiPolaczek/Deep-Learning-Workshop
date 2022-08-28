@@ -57,7 +57,8 @@ from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_epsilon import EPSILON
-from autoencoder import Encoder, Decoder
+from autoencoder import Encoder, Decoder, OurCustomLoss
+import torchvision.models as models
 
 ###########################################################################################################
 # Fuse
@@ -70,20 +71,21 @@ run_local = True # set 'False' if running server
 mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
-debug_params = True
-
 ##########################################
 # Output Paths
 ##########################################
 NUM_GPUS = 1
 
 # switch to os.environ (?)
+ROOT = "./_examples/epsilon"
 if run_local:
-    ROOT = "./_examples/epsilon"
     DATA_DIR = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps"
+    TRAIN_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
+    EVAL_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
 else:
-    ROOT = ""
+    from catboost.datasets import epsilon
     DATA_DIR=""
+    TRAIN_DATA, test_data = epsilon()
 
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
@@ -95,9 +97,8 @@ PATHS = {
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "eye_split.pkl")
 }
-if debug_params:
-    TRAIN_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
-    EVAL_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
+    
+    
 
 ##########################################
 # Train Common Params
@@ -106,13 +107,13 @@ TRAIN_COMMON_PARAMS = {}
 # ============
 # Data
 # ============
-TRAIN_COMMON_PARAMS["data.batch_size"] = 12
+TRAIN_COMMON_PARAMS["data.batch_size"] = 64
 TRAIN_COMMON_PARAMS["data.train_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 8
 TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
-TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2]
-TRAIN_COMMON_PARAMS["data.validation_folds"] = [3]
+TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2, 3]
+TRAIN_COMMON_PARAMS["data.validation_folds"] = [4]
 TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
 TRAIN_COMMON_PARAMS["data.num_features"] = 2000  # Use all data
 
@@ -136,31 +137,50 @@ TRAIN_COMMON_PARAMS["opt.weight_decay"] = 1e-3
 # Model
 # ===================================================================================================================
 
-def create_model():  # temp
-    pass
 
-def create_autoencoder(decode: bool) -> torch.nn.Module:
+def create_model() -> torch.nn.Module:
 
     encoding_channels = 3
 
     model = ModelMultiHead(
         conv_inputs=(("data.input.sqr_vector", 1),),
-        backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),
+        backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),  # Encoder 
         key_out_features="data.encoding",
         heads=[
+            # Decoder
             HeadGeneric(
-                head_name="decoder",
+                head_name="head_decoder",
                 conv_inputs=[("data.encoding", encoding_channels)],
-                shared_classifier_head = Decoder(
+                head = Decoder(
                     in_channels=encoding_channels,
                     out_channels=1,
-                    decode=decode,
                     verbose=True
                 ),
             ),
+            # ResNet
+            HeadGeneric(
+                head_name="head_resnet",
+                conv_inputs=[("data.encoding", encoding_channels)],
+                head = models.resnet50(pretrained=False, progress=True)
+            ),
+            # Classifier 
+            HeadGlobalPoolingClassifier(
+                head_name="head_cls",
+                # dropout_rate=dropout_rate,
+                conv_inputs=[("model.head_resnet", 1000)],  # change if use resnet, I think to 512, need to double check
+                shared_classifier_head = ClassifierMLP(
+                    in_ch = 1000,
+                    num_classes=2,
+                    layers_description=(256,),
+                    dropout_rate=0.1
+                ),
+                pooling="avg",
+            ),
+
         ],
     )    
     return model
+
 
 
 #################################
@@ -184,9 +204,9 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     print("Train Data:")
 
-    if mode == "debug":
+    if run_local:
         print("GO DEBUG!")
-        TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1
+        TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 10
         sample_ids = [i for i in range(1000)]
         
     else:
@@ -201,6 +221,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     all_dataset = EPSILON.dataset(
         paths["cache_dir"],
         data=TRAIN_DATA,
+        train=True
         reset_cache=True,
         num_workers=train_common_params["data.train_num_workers"],
         samples_ids=train_common_params["data.samples_ids"],
@@ -220,7 +241,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     for fold in train_common_params["data.validation_folds"]:
         validation_sample_ids += folds[fold]
 
-    train_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids)
+    train_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids, train=True)
 
     ## Create batch sampler
     print("- Create sampler:")
@@ -266,21 +287,19 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #   Loss
     # ==========================================================================================================================================
     losses = {
-        "cls_loss": LossDefault(pred="model.logits.head_0", target="data.label", callable=F.cross_entropy, weight=1.0),
+        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
+        "ae_loss": LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0), # Euclidean loss between the original data and the data after encoding and decoding
+        "encoding_loss": OurCustomLoss(key_encoding="data.encoding", mode="std", weight=100.0), # Custom loss for the encoding, making the image more suitable for Image CLS
     }
 
     # =========================================================================================================
     # Metrics - details can be found in (fuse/eval/README.md)[../../fuse/eval/README.md]
-    #   1. Create seperately for train and validation (might be a deep copy, but not a shallow one).
-    #   2. Set best_epoch_source:
-    #       monitor: the metric name to track
-    #       mode: either consider the "min" value to be best or the "max" value to be the best
     # =========================================================================================================
     class_names = ["CLASS_0", "CLASS_1"]
     train_metrics = OrderedDict(
         [
-            ("op", MetricApplyThresholds(pred="model.output.head_0")),  # will apply argmax
-            ("auc", MetricAUCROC(pred="model.output.head_0", target="data.label", class_names=class_names)),
+            ("op", MetricApplyThresholds(pred="model.output.head_cls")),  # will apply argmax
+            ("auc", MetricAUCROC(pred="model.output.head_cls", target="data.label", class_names=class_names)),
             ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
         ]
     )
@@ -372,7 +391,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         infer_sample_ids += folds[fold]
 
     # Create dataset
-    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=infer_sample_ids)
+    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=EVAL_DATA, reset_cache=True, train=False)
 
 
     ## Create dataloader
@@ -391,7 +410,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     )
 
     # set the prediction keys to extract and dump into file (the ones used be the evaluation function).
-    pl_module.set_predictions_keys(["model.output.head_0", "data.label"])
+    pl_module.set_predictions_keys(["model.output.head_cls", "data.label"])
 
     # create a trainer instance and predict
     pl_trainer = pl.Trainer(
@@ -426,13 +445,13 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
     # metrics
     metrics = OrderedDict(
         [
-            ("op", MetricApplyThresholds(pred="model.output.head_0")),  # will apply argmax
-            ("auc", MetricAUCROC(pred="model.output.head_0", target="data.label")),
+            ("op", MetricApplyThresholds(pred="model.output.head_cls")),  # will apply argmax
+            ("auc", MetricAUCROC(pred="model.output.head_cls", target="data.label")),
             ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
             (
                 "roc",
                 MetricROCCurve(
-                    pred="model.output.head_0",
+                    pred="model.output.head_cls",
                     target="data.label",
                     output_filename=os.path.join(paths["inference_dir"], "roc_curve.png"),
                 ),

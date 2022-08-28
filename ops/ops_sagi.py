@@ -153,3 +153,22 @@ class OpEpsilonRenameLabel(OpBase):
             sample_dict[key] = 0
 
         return sample_dict
+
+
+
+class OpPadVecInOneSide(OpBase):
+    """
+    Pad vector in one side.
+    
+    [1,2,3] with padding=3 -> [1,2,3,0,0,0]
+
+    as oppose to other pad funcs where we get [0,0,0,1,2,3,0,0,0]
+    """
+    def __call__(self, sample_dict: NDict, key_in: str, key_out: str, padding: int):
+        
+        vec: np.ndarray = sample_dict[key_in]
+
+        padded_vec = np.pad(vec, (0, padding))
+
+        sample_dict[key_out] = padded_vec
+        return sample_dict
