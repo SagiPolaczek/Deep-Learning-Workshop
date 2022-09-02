@@ -1,67 +1,41 @@
 import os
-from zipfile import ZipFile
-from fuse.utils.file_io.file_io import create_dir
-import wget
-from typing import Hashable, Optional, Sequence, List, Tuple
+from typing import Hashable, Optional, Sequence, List
 import torch
-from scipy.io import arff
 import pandas as pd
-import numpy as np
+from catboost.datasets import epsilon
 
 from fuse.data import DatasetDefault
 from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy, OpToInt
-from fuse.data.utils.sample import get_sample_id
 from fuse.data.pipelines.pipeline_default import PipelineDefault
 from fuse.data.ops.op_base import OpBase
 from fuse.data.datasets.caching.samples_cacher import SamplesCacher
-from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
-from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
-from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintTypes, OpPrintShapes
-from fuseimg.data.ops.ops_debug import OpVis2DImage
-
 from fuse.utils import NDict
 
-from fuseimg.data.ops.image_loader import OpLoadImage
-from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
-from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D, OpAugUnsqueeze3DFrom2D
-from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
-
 from ops.ops_shaked import OpReshapeVector
-from ops.ops_sagi import OpKeysToList, OpConvImageKernel, OpSubtractMean, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide
-import skimage
-from fuseimg.data.ops.shape_ops import OpPad
-
-from catboost.datasets import epsilon
+from ops.ops_sagi import OpKeysToList, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide
 
 
 class OpEPSILONSampleIDDecode(OpBase):
+    """
+    decodes sample id
+    """
     def __call__(self, sample_dict: NDict) -> NDict:
-        """
-        decodes sample id
-        """
-
         sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
         # Cast the sample ids from integers to strings to match fuse's sampler
         sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
 
 
-
 class EPSILON:
+    """
+    data.input.vector -> the raw input data as a vector
+    data.input.sqr_vector -> raw input data as a square (orig + 25 padded zeros)
+    data.label -> input label as 0 or 1
+
+    """
 
     DATASET_VER = 0
-
-    @staticmethod
-    def download(
-        data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None
-    ) -> None:
-        """
-        TODO
-        """
-        pass
-
 
     @staticmethod
     def sample_ids(train: bool = True) -> List[str]:
@@ -81,7 +55,6 @@ class EPSILON:
         """
         # needs to be str if data is loaded via 'read_csv'
         feature_columns = [ str(_) for _ in range(1, 2001)]  # All 2000 features. 
-        # feature_columns = [ _ for _ in range(1, 2001)]  # All 2000 features. 
         label_column = ["0"]
 
         static_pipeline = PipelineDefault(
@@ -89,7 +62,6 @@ class EPSILON:
             [
                 # Step 1: Decoding sample ID TODO delete (?)
                 (OpEPSILONSampleIDDecode(), dict()),
-                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
 
                 # Step 2: load sample's features
                 (OpReadDataframe(
@@ -99,9 +71,6 @@ class EPSILON:
                         columns_to_extract=feature_columns,
                     ),
                     dict(prefix="data.feature")),
-
-                # Step 2.5: delete feature to match k^2
-                # OpFunc
 
                 # Step 3: load all the features into a numpy array
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.input.vector")),
@@ -120,37 +89,27 @@ class EPSILON:
                 (OpEpsilonRenameLabel(), dict(key="data.label")),
 
                 (OpToInt(), dict(key="data.label")),
-                # DEBUG
-                # (OpPrintShapes(num_samples=1), dict()),
-                # (OpPrintTypes(num_samples=1), dict()),
-                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
-                # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
-
             ],
         )
         return static_pipeline
 
     @staticmethod
-    def dynamic_pipeline(
-        train: bool = False, append: Optional[Sequence[Tuple[OpBase, dict]]] = None
-    ) -> PipelineDefault:
+    def dynamic_pipeline() -> PipelineDefault:
         """
-        Get suggested dynamic pipeline. including pre-processing that might be modified and augmentation operations.
-        :param train: add augmentation if True
-        :param append: pipeline steps to append at the end of the suggested pipeline
+        TODO
         """
 
         dynamic_pipeline = [
-            # Pad and reshape to 2D matrix
+            # Step 1 - Pad and reshape to 2D matrix
             (OpPadVecInOneSide(), dict(key_in="data.input.vector", key_out="data.input.vector_padded", padding=25)),
             (OpReshapeVector(), dict(key_in_vector="data.input.vector_padded", key_out="data.input.sqr_vector")),
 
-            # Convert to tensor
+            # Step 2 - Convert to tensors
             (OpToTensor(), dict(key="data.input.vector", dtype=torch.float)),
             (OpToTensor(), dict(key="data.input.sqr_vector", dtype=torch.float)),
-            # (OpPrintShapes(num_samples=1), dict()),
+
+            # Step 3 - Exapnd to match model dims
             (OpExpandTensor(), dict(key="data.input.sqr_vector")),
-            # (OpExpandTensor(), dict(key="data.input.vector")),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
@@ -164,9 +123,7 @@ class EPSILON:
         train: bool = False,
         reset_cache: bool = False,
         num_workers: int = 10,
-        append_dyn_pipeline: Optional[Sequence[Tuple[OpBase, dict]]] = None,
         samples_ids: Optional[Sequence[Hashable]] = None,
-        use_cacher: bool = True,
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -190,7 +147,7 @@ class EPSILON:
             samples_ids = EPSILON.sample_ids(train)
 
         static_pipeline = EPSILON.static_pipeline(data=data)
-        dynamic_pipeline = EPSILON.dynamic_pipeline(train, append=append_dyn_pipeline)
+        dynamic_pipeline = EPSILON.dynamic_pipeline()
 
         # TODO: delete or reactivate
         cacher = SamplesCacher(
@@ -200,9 +157,6 @@ class EPSILON:
             restart_cache=reset_cache,
             workers=num_workers,
         )
-
-        if not use_cacher:  # debugging
-            cacher = None
         
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
@@ -216,19 +170,22 @@ class EPSILON:
 
 
 if __name__ == "__main__":
+    # Main script for testing data pipelines
     run_local = True
+    debug = True
 
     # switch to os.environ (?)
     if run_local:
         ROOT = "./_examples/epsilon"
         DATA_DIR = ""
+        samples_ids = [i for i in range(1000)]
     else:
         ROOT = "/tmp/_sagi/_examples/epsilon"
         DATA_DIR=""
+        samples_ids = None
 
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    debug = True
     if debug:
         print("Loading debug data")
         train_data = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
@@ -240,12 +197,13 @@ if __name__ == "__main__":
         train_data, test_data = epsilon()
         print("Done downloading data!")
 
-    # Testing sp initialization
+    # Testing static pipeline initialization
     sp = EPSILON.static_pipeline(data=train_data)
 
     dataset = EPSILON.dataset(
-        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
+        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids
     )
 
+    # all data pipeline will be executed
     sample = dataset[0]
     print("Done!")

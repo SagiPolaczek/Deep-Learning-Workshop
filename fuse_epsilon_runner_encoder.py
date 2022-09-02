@@ -65,43 +65,49 @@ import torchvision.models as models
 ###########################################################################################################
 
 ##########################################
+# Experiments
+##########################################
+run_local = True  # set 'False' if running remote
+experiment = "full tensor std"  # Choose from supported experiments
+
+supported_experiments = [
+    # "MLP",  # TODO elaborate
+    "full tensor std",
+    # "disjoint patches std",  # TODO elaborate
+    # "intersect patches std",  # TODO elaborate
+]
+
+assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
+
+##########################################
 # Debug modes
 ##########################################
-run_local = False # set 'False' if running server
-mode = "debug" if run_local else "default"
+mode = "default"  # switch to "debug" in a debug session
 debug = FuseDebug(mode)
 
 ##########################################
-# Output Paths
+# Paths
 ##########################################
 NUM_GPUS = 1
 
-# switch to os.environ (?)
+# TODO switch to os.environ (?)
 ROOT = "./_examples/epsilon"
 if run_local:
-    DATA_DIR = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps"
     train_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv"
     eval_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv"
 else:
-    DATA_DIR = ""
     train_data_path = "./fuse_workshop/_examples/epsilon/data/train_data.csv"
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
 
-print("Loading data...")
-TRAIN_DATA = pd.read_csv(train_data_path)
-EVAL_DATA = pd.read_csv(eval_data_path)
-print("Loading data - Done!")
-model_dir = os.path.join(ROOT, "model_dir")
+
+model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 PATHS = {
-    "data_dir": DATA_DIR,
     "model_dir": model_dir,
-    # "force_reset_model_dir": False,  # If True will reset model dir automatically - otherwise will prompt 'are you sure' message.
     "cache_dir": os.path.join(ROOT, "cache_dir"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
-    "data_split_filename": os.path.join(ROOT, "eye_split.pkl")
+    "data_split_filename": os.path.join(ROOT, "eps_split.pkl")
 }
-    
     
 
 ##########################################
@@ -112,24 +118,21 @@ TRAIN_COMMON_PARAMS = {}
 # Data
 # ============
 TRAIN_COMMON_PARAMS["data.batch_size"] = 64
-TRAIN_COMMON_PARAMS["data.train_num_workers"] = 8
-TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 8
+TRAIN_COMMON_PARAMS["data.train_num_workers"] = 10
+TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2, 3]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [4]
-TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
-TRAIN_COMMON_PARAMS["data.num_features"] = 2000  # Use all data
-
+TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local else None
 
 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 50  # TODO raise
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 2 if run_local else 15
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
-TRAIN_COMMON_PARAMS["trainer.ckpt_path"] = None
 
 # ===============
 # Optimizer
@@ -142,47 +145,72 @@ TRAIN_COMMON_PARAMS["opt.weight_decay"] = 1e-3
 # ===================================================================================================================
 
 
-def create_model() -> torch.nn.Module:
-
-    encoding_channels = 3
-
-    model = ModelMultiHead(
-        conv_inputs=(("data.input.sqr_vector", 1),),
-        backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),  # Encoder 
-        key_out_features="data.encoding",
-        heads=[
-            # Decoder
-            HeadGeneric(
-                head_name="head_decoder",
-                conv_inputs=[("data.encoding", encoding_channels)],
-                head = Decoder(
-                    in_channels=encoding_channels,
-                    out_channels=1,
-                    verbose=True
+def create_model(experiment: str) -> torch.nn.Module:
+    """
+    TODO elaborate
+    :param experiment:
+    """
+    if experiment == "MLP":
+        model = ModelMultiHead(
+            conv_inputs=(("data.input.vector", 1),),
+            backbone=BackboneMultilayerPerceptron(mlp_input_size=2000),
+            heads=[
+                HeadGlobalPoolingClassifier(
+                    head_name="head_0",
+                    # dropout_rate=dropout_rate,
+                    conv_inputs=[("model.backbone_features", 384)],
+                    shared_classifier_head = ClassifierMLP(
+                        in_ch = 384,
+                        num_classes=2,
+                        layers_description=(256,),
+                        dropout_rate=0.1
+                    ),
+                    pooling="avg",
                 ),
-            ),
-            # ResNet
-            HeadGeneric(
-                head_name="head_resnet",
-                conv_inputs=[("data.encoding", encoding_channels)],
-                head = models.resnet50(pretrained=False, progress=True)
-            ),
-            # Classifier 
-            HeadGlobalPoolingClassifier(
-                head_name="head_cls",
-                # dropout_rate=dropout_rate,
-                conv_inputs=[("model.head_resnet", 1000)],  # change if use resnet, I think to 512, need to double check
-                shared_classifier_head = ClassifierMLP(
-                    in_ch = 1000,
-                    num_classes=2,
-                    layers_description=(256,),
-                    dropout_rate=0.1
-                ),
-                pooling="avg",
-            ),
+            ],
+        )
 
-        ],
-    )    
+    else:
+        encoding_channels = 3
+
+        model = ModelMultiHead(
+            conv_inputs=(("data.input.sqr_vector", 1),),
+            backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),
+            key_out_features="data.encoding",
+            heads=[
+                # Decoder
+                HeadGeneric(
+                    head_name="head_decoder",
+                    conv_inputs=[("data.encoding", encoding_channels)],
+                    head = Decoder(
+                        in_channels=encoding_channels,
+                        out_channels=1,
+                        verbose=True
+                    ),
+                ),
+                # ResNet
+                HeadGeneric(
+                    head_name="head_resnet",
+                    conv_inputs=[("data.encoding", encoding_channels)],
+                    head = models.resnet50(pretrained=False, progress=True)
+                ),
+                # Classifier 
+                HeadGlobalPoolingClassifier(
+                    head_name="head_cls",
+                    # dropout_rate=dropout_rate,
+                    conv_inputs=[("model.head_resnet", 1000)],  # change if use resnet, I think to 512, need to double check
+                    shared_classifier_head = ClassifierMLP(
+                        in_ch = 1000,
+                        num_classes=2,
+                        layers_description=(256,),
+                        dropout_rate=0.1
+                    ),
+                    pooling="avg",
+                ),
+
+            ],
+        )
+
     return model
 
 
@@ -195,6 +223,12 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     # Logger
     # ==============================================================================
     fuse_logger_start(output_path=paths["model_dir"], console_verbose_level=logging.INFO)
+    
+    if run_local:
+        print("Run LOCAL")
+        
+    else:
+        print("Run REMOTE")
 
     print("Fuse Train")
     print(f'model_dir={paths["model_dir"]}')
@@ -207,21 +241,11 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #### Train Data
 
     print("Train Data:")
+    print("Loading data...")
+    TRAIN_DATA = pd.read_csv(train_data_path)
+    print("Loading data - Done!")
 
-    if run_local:
-        print("GO DEBUG!")
-        TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 10
-        sample_ids = [i for i in range(1000)]
-        
-    else:
-        sample_ids = None
-
-    train_common_params["data.samples_ids"] = sample_ids # temp and ugly
-
-
-    ## TODO - list your sample ids:
-    # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
-    #            See (examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py)[../../examples/fuse_examples/imaging/classification/stoic21/runner_stoic21.py]
+    ### Split into train and validation sets
     all_dataset = EPSILON.dataset(
         paths["cache_dir"],
         data=TRAIN_DATA,
@@ -284,20 +308,27 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     ## Create model
     print("Model:")
-    model = create_model()
+    model = create_model(experiment=experiment)
     print("Model: Done")
 
     # ==========================================================================================================================================
     #   Loss
     # ==========================================================================================================================================
-    losses = {
-        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
-        "ae_loss": LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0), # Euclidean loss between the original data and the data after encoding and decoding
-        "encoding_loss": OurCustomLoss(key_encoding="data.encoding", mode="std", weight=100.0), # Custom loss for the encoding, making the image more suitable for Image CLS
-    }
+    if experiment == "MLP":
+        # Use only classification loss
+        losses = {
+            "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
+        }
+    if experiment == "full tensor std":
+        # TODO elaborate
+        losses = {
+            "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
+            "ae_loss": LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0), # Euclidean loss between the original data and the data after encoding and decoding
+            "encoding_loss": OurCustomLoss(key_encoding="data.encoding", mode="std", weight=100.0), # Custom loss for the encoding, making the image more suitable for Image CLS
+        }
 
     # =========================================================================================================
-    # Metrics - details can be found in (fuse/eval/README.md)[../../fuse/eval/README.md]
+    # Metrics
     # =========================================================================================================
     class_names = ["CLASS_0", "CLASS_1"]
     train_metrics = OrderedDict(
@@ -354,7 +385,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # train
     pl_trainer.fit(
-        pl_module, train_dataloader, validation_dataloader, ckpt_path=train_common_params["trainer.ckpt_path"]
+        pl_module, train_dataloader, validation_dataloader
     )
 
     print("Fuse Train: Done")
@@ -365,10 +396,10 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 ######################################
 INFER_COMMON_PARAMS = {}
 INFER_COMMON_PARAMS["data.num_workers"] = TRAIN_COMMON_PARAMS["data.train_num_workers"]
-INFER_COMMON_PARAMS["data.batch_size"] = 4
+INFER_COMMON_PARAMS["data.batch_size"] = TRAIN_COMMON_PARAMS["data.batch_size"]
 INFER_COMMON_PARAMS["infer_filename"] = os.path.join(PATHS["inference_dir"], "validation_set_infer.pickle")
 INFER_COMMON_PARAMS["checkpoint"] = "best_epoch.ckpt"  # Fuse TIP: possible values are 'best', 'last' or epoch_index.
-INFER_COMMON_PARAMS["data.infer_folds"] = [4]  # infer validation set
+INFER_COMMON_PARAMS["data.samples_ids"] = [i for i in range(200)] if run_local else None
 INFER_COMMON_PARAMS["trainer.num_devices"] = TRAIN_COMMON_PARAMS["trainer.num_devices"]
 INFER_COMMON_PARAMS["trainer.accelerator"] = TRAIN_COMMON_PARAMS["trainer.accelerator"]
 
@@ -387,16 +418,12 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     print("Fuse Inference")
     print(f"infer_filename={infer_file}")
 
-    ## Data
-    folds = load_pickle(paths["data_split_filename"])  # assume exists and created in train func
-
-    infer_sample_ids = []
-    for fold in infer_common_params["data.infer_folds"]:
-        infer_sample_ids += folds[fold]
-
     # Create dataset
-    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=EVAL_DATA, reset_cache=True, train=False)
+    print("Loading data...")
+    INFER_DATA = pd.read_csv(eval_data_path)
+    print("Loading data - Done!")
 
+    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=INFER_DATA, reset_cache=True, train=False, samples_ids=infer_common_params["data.samples_ids"])
 
     ## Create dataloader
     infer_dataloader = DataLoader(
@@ -406,7 +433,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         collate_fn=CollateDefault(),
     )
 
-    model = create_model()
+    model = create_model(experiment=experiment)
 
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
