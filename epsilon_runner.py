@@ -67,7 +67,7 @@ experiment = "MLP"  # Choose from supported experiments
 
 supported_experiments = [
     "MLP",  # TODO elaborate
-    "full",
+    "full",  # TODO elaborate
     "disjoint",  # TODO elaborate
     "overlap",  # TODO elaborate
 ]
