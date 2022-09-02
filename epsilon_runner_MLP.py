@@ -96,7 +96,7 @@ else:
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
-cache_suffix = "_MLP"
+cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
     "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),
