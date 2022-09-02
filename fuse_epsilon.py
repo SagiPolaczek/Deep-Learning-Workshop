@@ -146,9 +146,8 @@ class EPSILON:
         static_pipeline = EPSILON.static_pipeline(data=data)
         dynamic_pipeline = EPSILON.dynamic_pipeline()
 
-        # TODO: delete or reactivate
         cacher = SamplesCacher(
-            f"eye_cache_ver{EPSILON.DATASET_VER}",
+            f"epsilon_cache_ver{EPSILON.DATASET_VER}",
             static_pipeline,
             [cache_path],
             restart_cache=reset_cache,

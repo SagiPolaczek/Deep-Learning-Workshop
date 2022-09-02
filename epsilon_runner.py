@@ -32,22 +32,17 @@ import torch.nn.functional as F
 from fuse.utils.utils_debug import FuseDebug
 import fuse.utils.gpu as GPU
 from fuse.utils.utils_logger import fuse_logger_start
-from fuse.utils.file_io.file_io import create_dir, save_dataframe, load_pickle
+from fuse.utils.file_io.file_io import create_dir, save_dataframe
 from fuse.data.utils.split import dataset_balanced_division_to_folds
 
 from fuse.eval.metrics.classification.metrics_thresholding_common import MetricApplyThresholds
 from fuse.eval.metrics.classification.metrics_classification_common import MetricAccuracy, MetricAUCROC, MetricROCCurve
-from fuse.data.datasets.caching.samples_cacher import SamplesCacher
-from fuse.data.datasets.dataset_default import DatasetDefault
-from fuse.data.pipelines.pipeline_default import PipelineDefault
 from fuse.data.utils.collates import CollateDefault
 from fuse.data.utils.samplers import BatchSamplerDefault
-from fuse.dl.models.backbones.backbone_resnet import BackboneResnet
 from fuse.dl.models.backbones.backbone_mlp import BackboneMultilayerPerceptron
-from fuse.dl.models.backbones.backbone_inception_resnet_v2 import BackboneInceptionResnetV2
 from fuse.dl.models.heads.head_global_pooling_classifier import HeadGlobalPoolingClassifier
 from fuse.dl.models.heads.head_generic import HeadGeneric
-from fuse.dl.models.heads.common import ClassifierFCN, ClassifierMLP
+from fuse.dl.models.heads.common import ClassifierMLP
 
 from fuse.dl.models import ModelMultiHead
 from fuse.dl.lightning.pl_module import LightningModuleDefault
@@ -240,7 +235,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         paths["cache_dir"],
         data=TRAIN_DATA,
         train=True,
-        reset_cache=True,
+        reset_cache=False,
         num_workers=train_common_params["data.train_num_workers"],
         samples_ids=train_common_params["data.samples_ids"],
     )
@@ -260,7 +255,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         validation_sample_ids += folds[fold]
 
     train_dataset = EPSILON.dataset(
-        paths["cache_dir"], data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids, train=True
+        paths["cache_dir"], data=TRAIN_DATA, reset_cache=False, samples_ids=train_sample_ids, train=True
     )
 
     ## Create batch sampler
@@ -310,6 +305,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # ==========================================================================================================================================
     #   Loss
+    #   TODO remove duplicate code
     # ==========================================================================================================================================
     if experiment == "MLP":
         # Use only classification loss
@@ -455,7 +451,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     infer_dataset = EPSILON.dataset(
         paths["cache_dir"],
         data=INFER_DATA,
-        reset_cache=True,
+        reset_cache=False,
         train=False,
         samples_ids=infer_common_params["data.samples_ids"],
     )
@@ -502,11 +498,12 @@ EVAL_COMMON_PARAMS["infer_filename"] = INFER_COMMON_PARAMS["infer_filename"]
 
 
 def run_eval(paths: dict, eval_common_params: dict) -> None:
-    infer_file = eval_common_params["infer_filename"]
 
     fuse_logger_start(output_path=None, console_verbose_level=logging.INFO)
     lgr = logging.getLogger("Fuse")
     lgr.info("Fuse Eval", {"attrs": ["bold", "underline"]})
+
+    infer_file = eval_common_params["infer_filename"]
 
     # metrics
     metrics = OrderedDict(

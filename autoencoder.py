@@ -1,9 +1,5 @@
-import math
-from turtle import forward
-from typing import Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from fuse.dl.losses import LossBase
 from fuse.utils.ndict import NDict
 
@@ -24,7 +20,7 @@ class SingleConv(nn.Module):
 
 class Encoder(nn.Module):
     """
-    TODO
+    TODO elaborate
     """
 
     def __init__(self, in_channels: int, out_channels: int, verbose: bool = True):
@@ -49,7 +45,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     """
-    TODO
+    TODO elaborate
     """
 
     def __init__(self, in_channels: int, out_channels: int, decode: bool = True, verbose: bool = True):
@@ -76,7 +72,13 @@ class Decoder(nn.Module):
 
 class OurEncodingLoss(LossBase):
     """
-    TODO
+    TODO elaborate
+
+    mode == "std":
+
+    mode == "disjoint":
+
+    mode == "overlap":
     """
 
     def __init__(self, key_encoding: str, mode: str, weight: float = 1.0):
@@ -98,14 +100,12 @@ class OurEncodingLoss(LossBase):
 
         if self._mode == "disjoint":
             # disjoint patches
-            disjoint_patches = encoding.unfold(2, 5, 5).unfold(3, 5, 5)  # shape of [batch_size, ch_num, 9, 9, 5, 5]
+            disjoint_patches = encoding.unfold(2, 5, 5).unfold(3, 5, 5)
             loss = self.compute_patches_std(disjoint_patches)
 
         if self._mode == "overlap":
             # overlapping patches
-            overlapping_patches = encoding.unfold(2, 5, 3).unfold(
-                3, 5, 3
-            )  # shape of [batch_size, ch_num, 14, 14, 5, 5]
+            overlapping_patches = encoding.unfold(2, 5, 3).unfold(3, 5, 3)
             loss = self.compute_patches_std(overlapping_patches)
 
         loss *= self._weight
