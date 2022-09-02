@@ -17,7 +17,7 @@ from torchvision import transforms
 
 class HiggsDataset(Dataset):
     """
-    
+
     """
 
     def __init__(self, file_path: str, base_image_path: Optional[str] = None, train: bool = True, transform: Optional[transforms.Compose] = None):
@@ -38,11 +38,12 @@ class HiggsDataset(Dataset):
             # Can be read from path or supplied externaly
             # self._base_image = skimage.data.coins() # 90%
             # self._base_image = skimage.data.cell() # 90%
-            self._base_image = skimage.data.shepp_logan_phantom() # 94%
+            self._base_image = skimage.data.shepp_logan_phantom()  # 94%
 
         # Split into training data and validation data
-        samples_ids = self._df.index.tolist()
-        train_samples, val_samples = train_test_split(samples_ids, test_size=0.25, random_state=42)
+        samples_ids = list(self._df.index)
+        train_samples, val_samples = train_test_split(
+            samples_ids, test_size=0.25, random_state=42)
 
         # Define the dataframe and the dataset's length
         if train:
@@ -70,14 +71,16 @@ class HiggsDataset(Dataset):
         item = self._df.iloc[index].values
 
         features_vector = item[1:-2]
-        label = {'s':0, 'b':1}[item[-1]]
+        label = {'s': 0, 'b': 1}[item[-1]]
         weight = item[-2]
 
         # print(f"feature vector shape {features_vector.shape}")
 
         # transform it to kernel
-        features_vector = np.delete(features_vector, [7,11,13,17,23])  # TODO
-        kernel = feature_vector_to_kernel(features_vector=features_vector, k=5, mode='default')
+        features_vector = np.delete(
+            features_vector, [7, 11, 13, 17, 23])  # TODO
+        kernel = feature_vector_to_kernel(
+            features_vector=features_vector, k=5, mode='default')
 
         # apply it on the base image
         # print(self._base_image.dtype)
@@ -100,12 +103,8 @@ class HiggsDataset(Dataset):
 
         # return the convolved image
         sample = {'image': image, 'label': label, 'weight': weight}
-        
+
         return sample
-
-
-
-
 
 
 ########
@@ -128,7 +127,7 @@ def feature_vector_to_kernel(features_vector: np.ndarray, k: int, mode: str = 'd
     #     feature_vector = utils.pad(features_vector, nearest_odd, train_params['pad_mode'])
     # if op == 'trim':
     #     feature_vector = utils.trim(features_vector, nearest_odd, train_params['trim_mode'])
-    
+
     # now the vector with the right size (k^2)
     # should we convert it to a (k x k) kernel? (img/tensor etc. not a vector)
 
@@ -144,7 +143,7 @@ def feature_vector_to_kernel(features_vector: np.ndarray, k: int, mode: str = 'd
 
 def normalize(image: np.ndarray) -> np.ndarray:
     """
-    
+
     """
     min_value = image.min()
     image = image - min_value
