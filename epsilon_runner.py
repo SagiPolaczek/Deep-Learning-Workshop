@@ -305,54 +305,25 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # ==========================================================================================================================================
     #   Loss
-    #   TODO remove duplicate code
+    #   TODO Elaborate
     # ==========================================================================================================================================
-    if experiment == "MLP":
-        # Use only classification loss
-        losses = {
-            "cls_loss": LossDefault(
-                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
-            ),
-        }
+    losses = {
+        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
+    }
+
+    if experiment != "MLP":
+        losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
+
     if experiment == "full tensor std":
-        # TODO elaborate
-        losses = {
-            "cls_loss": LossDefault(
-                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
-            ),
-            "ae_loss": LossDefault(
-                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
-            ),  # Euclidean loss between the original data and the data after encoding and decoding
-            "encoding_loss": OurEncodingLoss(
-                key_encoding="data.encoding", mode="std", weight=100.0
-            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
-        }
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="std", weight=100.0)
+
     if experiment == "disjoint patches std":
-        # TODO elaborate
-        losses = {
-            "cls_loss": LossDefault(
-                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
-            ),
-            "ae_loss": LossDefault(
-                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
-            ),  # Euclidean loss between the original data and the data after encoding and decoding
-            "encoding_loss": OurEncodingLoss(
-                key_encoding="data.encoding", mode="disjoint", weight=100.0
-            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
-        }
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="disjoint", weight=100.0)
+
     if experiment == "overlapping patches std":
-        # TODO elaborate
-        losses = {
-            "cls_loss": LossDefault(
-                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
-            ),
-            "ae_loss": LossDefault(
-                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
-            ),  # Euclidean loss between the original data and the data after encoding and decoding
-            "encoding_loss": OurEncodingLoss(
-                key_encoding="data.encoding", mode="overlap", weight=100.0
-            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
-        }
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="overlap", weight=100.0)
+
+
 
     # =========================================================================================================
     # Metrics
