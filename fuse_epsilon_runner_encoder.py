@@ -67,7 +67,7 @@ import torchvision.models as models
 ##########################################
 # Debug modes
 ##########################################
-run_local = True # set 'False' if running server
+run_local = False # set 'False' if running server
 mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
@@ -80,13 +80,17 @@ NUM_GPUS = 1
 ROOT = "./_examples/epsilon"
 if run_local:
     DATA_DIR = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps"
-    TRAIN_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
-    EVAL_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
+    train_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv"
+    eval_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv"
 else:
-    from catboost.datasets import epsilon
-    DATA_DIR=""
-    TRAIN_DATA, test_data = epsilon()
+    DATA_DIR = ""
+    train_data_path = "./fuse_workshop/_examples/epsilon/data/train_data.csv"
+    eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
 
+print("Loading data...")
+TRAIN_DATA = pd.read_csv(train_data_path)
+EVAL_DATA = pd.read_csv(eval_data_path)
+print("Loading data - Done!")
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
     "data_dir": DATA_DIR,
@@ -221,7 +225,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     all_dataset = EPSILON.dataset(
         paths["cache_dir"],
         data=TRAIN_DATA,
-        train=True
+        train=True,
         reset_cache=True,
         num_workers=train_common_params["data.train_num_workers"],
         samples_ids=train_common_params["data.samples_ids"],

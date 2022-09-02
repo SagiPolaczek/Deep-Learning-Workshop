@@ -81,6 +81,7 @@ class EPSILON:
         """
         # needs to be str if data is loaded via 'read_csv'
         feature_columns = [ str(_) for _ in range(1, 2001)]  # All 2000 features. 
+        # feature_columns = [ _ for _ in range(1, 2001)]  # All 2000 features. 
         label_column = ["0"]
 
         static_pipeline = PipelineDefault(
