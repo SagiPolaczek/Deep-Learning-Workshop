@@ -97,17 +97,17 @@ class OpSubtractMean(OpBase):
 
 class OpExpandTensor(OpBase):
     """
-    Expand 2D Tensor into a 3D Tensor such that the first dim is empty
+    Expand tensor
     """
 
     def __init__(self):
         super().__init__()
 
-    def __call__(self, sample_dict: NDict, key: str):
+    def __call__(self, sample_dict: NDict, key: str, dim: int = 0):
 
         tensor = sample_dict[key]
-        # tensor = tensor[None, :, :]
-        tensor = torch.unsqueeze(tensor, dim=0)  # Same
+
+        tensor = torch.unsqueeze(tensor, dim=dim)
 
         sample_dict[key] = tensor
         return sample_dict
