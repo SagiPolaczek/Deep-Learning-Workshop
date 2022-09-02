@@ -62,7 +62,7 @@ import torchvision.models as models
 ##########################################
 # Experiments
 ##########################################
-run_local = True  # set 'False' if running remote
+run_local = False  # set 'False' if running remote
 experiment = "overlap"  # Choose from supported experiments
 
 supported_experiments = [
@@ -77,7 +77,7 @@ assert experiment in supported_experiments, f"runner doesn't support experiment 
 ##########################################
 # Debug modes
 ##########################################
-mode = "False"  # switch to "debug" in a debug session
+mode = "default"  # switch to "debug" in a debug session
 debug = FuseDebug(mode)
 
 ##########################################
