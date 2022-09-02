@@ -96,10 +96,11 @@ else:
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
+cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
-    "cache_dir_train": os.path.join(ROOT, "cache_dir_train"),
-    "cache_dir_eval": os.path.join(ROOT, "cache_dir_eval"),
+    "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),
+    "cache_dir_eval": os.path.join(ROOT, f"cache_dir_eval{cache_suffix}"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "eps_split.pkl"),
