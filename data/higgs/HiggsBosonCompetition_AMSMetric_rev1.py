@@ -16,7 +16,7 @@
 # def create_solution_dictionary(solution):
 #     """ Read solution file, return a dictionary with key EventId and value (weight,label).
 #     Solution file headers: EventId, Label, Weight """
-    
+
 #     solnDict = {}
 #     with open(solution, 'rb') as f:
 #         soln = csv.reader(f)
@@ -26,19 +26,19 @@
 #                 solnDict[row[0]] = (row[1], row[2])
 #     return solnDict
 
-        
+
 # def check_submission(submission, Nelements):
 #     """ Check that submission RankOrder column is correct:
 #         1. All numbers are in [1,NTestSet]
 #         2. All numbers are unqiue
 #     """
-#     rankOrderSet = set()    
+#     rankOrderSet = set()
 #     with open(submission, 'rb') as f:
 #         sub = csv.reader(f)
 #         sub.next() # header
 #         for row in sub:
 #             rankOrderSet.add(row[1])
-            
+
 #     if len(rankOrderSet) != Nelements:
 #         print 'RankOrder column must contain unique values'
 #         exit()
@@ -48,14 +48,14 @@
 #     else:
 #         return True
 
-    
+
 # def AMS(s, b):
 #     """ Approximate Median Significance defined as:
 #         AMS = sqrt(
 #                 2 { (s + b + b_r) log[1 + (s/(b+b_r))] - s}
-#               )        
+#               )
 #     where b_r = 10, b = background, s = signal, log is natural logarithm """
-    
+
 #     br = 10.0
 #     radicand = 2 *( (s+b+br) * math.log (1.0 + s/(b+br)) -s)
 #     if radicand < 0:
@@ -70,9 +70,9 @@
 #     Solution File header: EventId, Class, Weight
 #     Submission File header: EventId, RankOrder, Class
 #     """
-    
+
 #     numEvents = 550000 # number of events = size of test set
-    
+
 #     # solutionDict: key=eventId, value=(label, class)
 #     solutionDict = create_solution_dictionary(solution)
 
@@ -88,18 +88,16 @@
 #                         signal += float(solutionDict[row[0]][1])
 #                     elif solutionDict[row[0]][0] == 'b':
 #                         background += float(solutionDict[row[0]][1])
-     
+
 #         print 'signal = {0}, background = {1}'.format(signal, background)
 #         print 'AMS = ' + str(AMS(signal, background))
 
 
 # if __name__ == "__main__":
 
-#     # enter path and file names here    
+#     # enter path and file names here
 #     path = ""
 #     solutionFile = ""
 #     submissionFile = ""
-    
+
 #     AMS_metric(solutionFile, submissionFile)
-    
-    

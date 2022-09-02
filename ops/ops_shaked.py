@@ -33,8 +33,7 @@ class OpReshapeVector(OpBase):
         k = math.sqrt(vec.shape[0])
 
         if int(k) != k:
-            raise Exception(
-                f"Vector size square root should be an integer, but got {k}")
+            raise Exception(f"Vector size square root should be an integer, but got {k}")
 
         k = int(k)
         res = vec.reshape((k, k))
@@ -52,8 +51,7 @@ class OpHIGGSSampleIDDecode(OpBase):
         decodes sample id
         """
 
-        sample_dict["data.sample_id_as_int"] = int(
-            sample_dict["data.sample_id"])
+        sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
         # Cast the sample ids from integers to strings to match fuse's sampler
         sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
@@ -65,9 +63,7 @@ class OpBasicFeatureSelection(OpBase):
         decodes sample id
         """
 
-        sample_dict["data.sample_id_as_int"] = int(
-            sample_dict["data.sample_id"])
+        sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
         # Cast the sample ids from integers to strings to match fuse's sampler
         sample_dict["data.sample_id"] = str(sample_dict["data.sample_id"])
         return sample_dict
-

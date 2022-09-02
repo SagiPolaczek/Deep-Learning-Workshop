@@ -12,19 +12,19 @@ import csv
 from skimage import io
 
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 num_landmarks = 68
 
-with open('face_landmarks.csv', 'w', newline='') as csvfile:
+with open("face_landmarks.csv", "w", newline="") as csvfile:
     csv_writer = csv.writer(csvfile)
 
-    header = ['image_name']
+    header = ["image_name"]
     for i in range(num_landmarks):
-        header += ['part_{}_x'.format(i), 'part_{}_y'.format(i)]
+        header += ["part_{}_x".format(i), "part_{}_y".format(i)]
 
     csv_writer.writerow(header)
 
-    for f in glob.glob('*.jpg'):
+    for f in glob.glob("*.jpg"):
         img = io.imread(f)
         dets = detector(img, 1)  # face detection
 

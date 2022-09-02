@@ -20,6 +20,7 @@ class OpEPSILONSampleIDDecode(OpBase):
     """
     decodes sample id
     """
+
     def __call__(self, sample_dict: NDict) -> NDict:
         sample_dict["data.sample_id_as_int"] = int(sample_dict["data.sample_id"])
         # Cast the sample ids from integers to strings to match fuse's sampler
@@ -54,7 +55,7 @@ class EPSILON:
         :param data: a table such that the first column is the label, and all the other 2000 are features
         """
         # needs to be str if data is loaded via 'read_csv'
-        feature_columns = [ str(_) for _ in range(1, 2001)]  # All 2000 features. 
+        feature_columns = [str(_) for _ in range(1, 2001)]  # All 2000 features.
         label_column = ["0"]
 
         static_pipeline = PipelineDefault(
@@ -62,32 +63,31 @@ class EPSILON:
             [
                 # Step 1: Decoding sample ID TODO delete (?)
                 (OpEPSILONSampleIDDecode(), dict()),
-
                 # Step 2: load sample's features
-                (OpReadDataframe(
+                (
+                    OpReadDataframe(
                         data=data,
-                        key_column = None,
-                        key_name = "data.sample_id_as_int",
+                        key_column=None,
+                        key_name="data.sample_id_as_int",
                         columns_to_extract=feature_columns,
                     ),
-                    dict(prefix="data.feature")),
-
+                    dict(prefix="data.feature"),
+                ),
                 # Step 3: load all the features into a numpy array
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.input.vector")),
                 (OpToNumpy(), dict(key="data.input.vector", dtype=float)),
-
-                # Step 4: Load label 
-                (OpReadDataframe(
+                # Step 4: Load label
+                (
+                    OpReadDataframe(
                         data=data,
-                        key_column = None,  # should be default None.. maybe fix in fuse
-                        key_name = "data.sample_id_as_int",
+                        key_column=None,  # should be default None.. maybe fix in fuse
+                        key_name="data.sample_id_as_int",
                         columns_to_extract=label_column,
                     ),
-                    dict(prefix="data")),
-                
+                    dict(prefix="data"),
+                ),
                 (OpRenameKey(), dict(key_old="data.0", key_new="data.label")),
                 (OpEpsilonRenameLabel(), dict(key="data.label")),
-
                 (OpToInt(), dict(key="data.label")),
             ],
         )
@@ -103,17 +103,14 @@ class EPSILON:
             # Step 1 - Pad and reshape to 2D matrix
             (OpPadVecInOneSide(), dict(key_in="data.input.vector", key_out="data.input.vector_padded", padding=25)),
             (OpReshapeVector(), dict(key_in_vector="data.input.vector_padded", key_out="data.input.sqr_vector")),
-
             # Step 2 - Convert to tensors
             (OpToTensor(), dict(key="data.input.vector", dtype=torch.float)),
             (OpToTensor(), dict(key="data.input.sqr_vector", dtype=torch.float)),
-
             # Step 3 - Exapnd to match model dims
             (OpExpandTensor(), dict(key="data.input.sqr_vector")),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
-
 
     @staticmethod
     def dataset(
@@ -137,10 +134,10 @@ class EPSILON:
         # TODO (?)
 
         assert (data is not None and data_path is None) or (data is None and data_path is not None)
-        
+
         if data_path:
             # read data
-            data = None # TODO
+            data = None  # TODO
             pass
 
         if samples_ids is None:
@@ -157,7 +154,7 @@ class EPSILON:
             restart_cache=reset_cache,
             workers=num_workers,
         )
-        
+
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
             static_pipeline=static_pipeline,
@@ -181,15 +178,19 @@ if __name__ == "__main__":
         samples_ids = [i for i in range(1000)]
     else:
         ROOT = "/tmp/_sagi/_examples/epsilon"
-        DATA_DIR=""
+        DATA_DIR = ""
         samples_ids = None
 
     cache_dir = os.path.join(ROOT, "cache_dir")
 
     if debug:
         print("Loading debug data")
-        train_data = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
-        test_data = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
+        train_data = pd.read_csv(
+            "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv"
+        )
+        test_data = pd.read_csv(
+            "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv"
+        )
         print("Done loading debug data!")
 
     else:
@@ -200,9 +201,7 @@ if __name__ == "__main__":
     # Testing static pipeline initialization
     sp = EPSILON.static_pipeline(data=train_data)
 
-    dataset = EPSILON.dataset(
-        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids
-    )
+    dataset = EPSILON.dataset(data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids)
 
     # all data pipeline will be executed
     sample = dataset[0]

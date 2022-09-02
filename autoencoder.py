@@ -8,7 +8,6 @@ from fuse.dl.losses import LossBase
 from fuse.utils.ndict import NDict
 
 
-
 class SingleConv(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int, padding: int):
         super(SingleConv, self).__init__()
@@ -23,27 +22,24 @@ class SingleConv(nn.Module):
         return x
 
 
-
-
 class Encoder(nn.Module):
     """
     TODO
     """
 
     def __init__(self, in_channels: int, out_channels: int, verbose: bool = True):
-        """
-        """
+        """ """
         super().__init__()
 
         self._verbose = verbose
-        
+
         self.layer1 = SingleConv(in_channels=in_channels, out_channels=16, kernel_size=3, padding=1)
         self.layer2 = SingleConv(in_channels=16, out_channels=32, kernel_size=3, padding=1)
         self.layer3 = SingleConv(in_channels=32, out_channels=16, kernel_size=3, padding=1)
         self.layer4 = SingleConv(in_channels=16, out_channels=out_channels, kernel_size=3, padding=1)
-    
+
     def forward(self, x):
-        
+
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
@@ -57,8 +53,7 @@ class Decoder(nn.Module):
     """
 
     def __init__(self, in_channels: int, out_channels: int, decode: bool = True, verbose: bool = True):
-        """
-        """
+        """ """
         super().__init__()
         self._verbose = verbose
         self._decode = decode
@@ -67,8 +62,6 @@ class Decoder(nn.Module):
         self.layer2 = SingleConv(in_channels=16, out_channels=32, kernel_size=3, padding=1)
         self.layer3 = SingleConv(in_channels=32, out_channels=16, kernel_size=3, padding=1)
         self.layer4 = SingleConv(in_channels=16, out_channels=out_channels, kernel_size=3, padding=1)
-
-
 
     def forward(self, x):
 
@@ -81,27 +74,53 @@ class Decoder(nn.Module):
         return x
 
 
-class OurCustomLoss(LossBase):
-        '''
-        TODO
-        '''
-        def __init__(self, key_encoding: str, mode: str, weight: float = 1.0):
-            super().__init__()
-            self._key_encoding = key_encoding
-            self._mode = mode
-            self._weight = weight
+class OurEncodingLoss(LossBase):
+    """
+    TODO
+    """
 
-            supported_modes = ["std"]
-            assert mode in supported_modes, "not supported mode."                
+    def __init__(self, key_encoding: str, mode: str, weight: float = 1.0):
+        super().__init__()
+        self._key_encoding = key_encoding
+        self._mode = mode
+        self._weight = weight
 
-        def forward(self, batch_dict:NDict) -> torch.Tensor:
-            # extract params from batch_dict
-            encoding: torch.Tensor = batch_dict[self._key_encoding]
-            encoding = encoding.clone().detach()
+        supported_modes = ["std", "disjoint", "overlap"]
+        assert mode in supported_modes, "not supported mode."
 
-            if self._mode == "std":
-                loss = torch.std(encoding)
-                # loss = torch.Tensor([0.001])[0]
+    def forward(self, batch_dict: NDict) -> torch.Tensor:
+        # extract params from batch_dict
+        encoding: torch.Tensor = batch_dict[self._key_encoding]
+        encoding = encoding.clone().detach()
 
-            loss *= self._weight
-            return loss
+        if self._mode == "std":
+            loss = torch.std(encoding)
+
+        if self._mode == "disjoint":
+            # disjoint patches
+            disjoint_patches = encoding.unfold(2, 5, 5).unfold(3, 5, 5)  # shape of [batch_size, ch_num, 9, 9, 5, 5]
+            loss = self.compute_patches_std(disjoint_patches)
+
+        if self._mode == "overlap":
+            # overlapping patches
+            overlapping_patches = encoding.unfold(2, 5, 3).unfold(
+                3, 5, 3
+            )  # shape of [batch_size, ch_num, 14, 14, 5, 5]
+            loss = self.compute_patches_std(overlapping_patches)
+
+        loss *= self._weight
+        return loss
+
+    def compute_patches_std(self, patches: torch.Tensor):
+        num_samples = patches.shape[0]
+        num_channels = patches.shape[1]
+
+        res = 0
+        for sample in range(num_samples):
+            for channel in range(num_channels):
+                # add the std of a single patch
+                res += torch.std(patches[sample, channel])
+
+        # take the avg std
+        res = res / (num_samples * num_channels)
+        return res

@@ -54,9 +54,7 @@ class EYE:
     DATASET_VER = 0
 
     @staticmethod
-    def download(
-        data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None
-    ) -> None:
+    def download(data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None) -> None:
         """
         TODO
         """
@@ -78,57 +76,50 @@ class EYE:
         feature_columns = EYE.get_feature_columns()
         data = arff.loadarff(data_path)
         df = pd.DataFrame(data[0])
-        base_image = skimage.data.shepp_logan_phantom() # Temp
+        base_image = skimage.data.shepp_logan_phantom()  # Temp
 
         static_pipeline = PipelineDefault(
             "static",
             [
                 # Step 1: Decoding sample ID TODO delete (?)
                 (OpEYESampleIDDecode(), dict()),
-
                 # Step 2: load sample's features
-                (OpReadDataframe(
+                (
+                    OpReadDataframe(
                         data=df,
-                        key_column = None,
-                        key_name = "data.sample_id_as_int",
+                        key_column=None,
+                        key_name="data.sample_id_as_int",
                         columns_to_extract=feature_columns,
                     ),
-                    dict(prefix="data.feature")),
-
+                    dict(prefix="data.feature"),
+                ),
                 # Step 2.5: delete feature to match k^2
                 # OpFunc
-
                 # Step 3: load all the features into a list
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpToNumpy(), dict(key="data.vector", dtype=float)),
-
-
                 # Step 4: reshape to kerenl - shuki
                 (OpReshapeVector(), dict(key_in_vector="data.vector", key_out="data.kernel")),
-
                 # Step 4.1: subract mean
                 (OpSubtractMean(), dict(key="data.kernel")),
-
                 # Step 5: Convolve with base image - sagi
                 (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
-
-
                 # Load label TODO
-                (OpReadDataframe(
+                (
+                    OpReadDataframe(
                         data=df,
-                        key_column = None,  # should be default None.. maybe fix in fuse
-                        key_name = "data.sample_id_as_int",
+                        key_column=None,  # should be default None.. maybe fix in fuse
+                        key_name="data.sample_id_as_int",
                         columns_to_extract=["label"],
                     ),
-                    dict(prefix="data")),
-
+                    dict(prefix="data"),
+                ),
                 (OpToInt(), dict(key="data.label")),
                 # DEBUG
                 # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
                 # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
                 # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
-
             ],
         )
         return static_pipeline
@@ -151,7 +142,6 @@ class EYE:
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
-
 
     @staticmethod
     def dataset(
@@ -192,7 +182,7 @@ class EYE:
 
         if not use_cacher:  # debugging
             cacher = None
-        
+
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
             static_pipeline=static_pipeline,
@@ -204,7 +194,6 @@ class EYE:
         return my_dataset
 
     def get_feature_columns() -> List[str]:
-        
 
         list_of_columns = [
             # "lineNo",    -> id same as index
@@ -249,7 +238,7 @@ if __name__ == "__main__":
         DATA_DIR = "./data/raw_data/eye_movements.arff"
     else:
         ROOT = "/tmp/_sagi/_examples/eye"
-        DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
+        DATA_DIR = "./sagi_dl_workshop/data/raw_data/eye_movements.arff"
 
     cache_dir = os.path.join(ROOT, "cache_dir")
 
@@ -257,9 +246,7 @@ if __name__ == "__main__":
     # print(sp)
 
     create_dir("./cacher")
-    dataset = EYE.dataset(
-        DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False
-    )
+    dataset = EYE.dataset(DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False)
     assert len(dataset) == 10936
 
     sample = dataset[0]

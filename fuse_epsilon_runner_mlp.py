@@ -64,7 +64,7 @@ from fuse_epsilon import EPSILON
 ##########################################
 # Debug modes
 ##########################################
-run_local = True # set 'False' if running server
+run_local = True  # set 'False' if running server
 mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
@@ -81,7 +81,7 @@ if run_local:
     DATA_DIR = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps"
 else:
     ROOT = ""
-    DATA_DIR=""
+    DATA_DIR = ""
 
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
@@ -91,10 +91,12 @@ PATHS = {
     "cache_dir": os.path.join(ROOT, "cache_dir"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
-    "data_split_filename": os.path.join(ROOT, "eye_split.pkl")
+    "data_split_filename": os.path.join(ROOT, "eye_split.pkl"),
 }
 if debug_params:
-    TRAIN_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv")
+    TRAIN_DATA = pd.read_csv(
+        "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv"
+    )
     EVAL_DATA = pd.read_csv("/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv")
 
 ##########################################
@@ -113,7 +115,6 @@ TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [3]
 TRAIN_COMMON_PARAMS["data.samples_ids"] = None  # Use all data
 TRAIN_COMMON_PARAMS["data.num_features"] = 2000  # Use all data
-
 
 
 # ===============
@@ -144,17 +145,16 @@ def create_model() -> torch.nn.Module:
             HeadGlobalPoolingClassifier(
                 head_name="head_0",
                 # dropout_rate=dropout_rate,
-                conv_inputs=[("model.backbone_features", 384)],  # change if use resnet, I think to 512, need to double check
-                shared_classifier_head = ClassifierMLP(
-                    in_ch = 384,
-                    num_classes=2,
-                    layers_description=(256,),
-                    dropout_rate=0.1
+                conv_inputs=[
+                    ("model.backbone_features", 384)
+                ],  # change if use resnet, I think to 512, need to double check
+                shared_classifier_head=ClassifierMLP(
+                    in_ch=384, num_classes=2, layers_description=(256,), dropout_rate=0.1
                 ),
                 pooling="avg",
             ),
         ],
-    )    
+    )
     return model
 
 
@@ -183,12 +183,11 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         print("GO DEBUG!")
         TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1
         sample_ids = [i for i in range(1000)]
-        
+
     else:
         sample_ids = None
 
-    train_common_params["data.samples_ids"] = sample_ids # temp and ugly
-
+    train_common_params["data.samples_ids"] = sample_ids  # temp and ugly
 
     ## TODO - list your sample ids:
     # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
@@ -215,7 +214,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     for fold in train_common_params["data.validation_folds"]:
         validation_sample_ids += folds[fold]
 
-    train_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids)
+    train_dataset = EPSILON.dataset(paths["cache_dir"], data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids)
 
     ## Create batch sampler
     print("- Create sampler:")
@@ -240,8 +239,9 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #### Validation data
     print("Validation Data:")
 
-    validation_dataset = EPSILON.dataset(paths["cache_dir"], data=TRAIN_DATA,reset_cache=False, samples_ids=validation_sample_ids)
-
+    validation_dataset = EPSILON.dataset(
+        paths["cache_dir"], data=TRAIN_DATA, reset_cache=False, samples_ids=validation_sample_ids
+    )
 
     ## Create dataloader
     validation_dataloader = DataLoader(
@@ -367,8 +367,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         infer_sample_ids += folds[fold]
 
     # Create dataset
-    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=infer_sample_ids)
-
+    infer_dataset = EPSILON.dataset(paths["cache_dir"], data=TRAIN_DATA, reset_cache=True, samples_ids=infer_sample_ids)
 
     ## Create dataloader
     infer_dataloader = DataLoader(

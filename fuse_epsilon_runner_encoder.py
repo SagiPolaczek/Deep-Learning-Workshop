@@ -57,7 +57,7 @@ from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_epsilon import EPSILON
-from autoencoder import Encoder, Decoder, OurCustomLoss
+from autoencoder import Encoder, Decoder, OurEncodingLoss
 import torchvision.models as models
 
 ###########################################################################################################
@@ -68,13 +68,13 @@ import torchvision.models as models
 # Experiments
 ##########################################
 run_local = True  # set 'False' if running remote
-experiment = "full tensor std"  # Choose from supported experiments
+experiment = "overlapping patches std"  # Choose from supported experiments
 
 supported_experiments = [
-    # "MLP",  # TODO elaborate
+    "MLP",  # TODO elaborate
     "full tensor std",
-    # "disjoint patches std",  # TODO elaborate
-    # "intersect patches std",  # TODO elaborate
+    "disjoint patches std",  # TODO elaborate
+    "overlapping patches std",  # TODO elaborate
 ]
 
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
@@ -106,9 +106,9 @@ PATHS = {
     "cache_dir": os.path.join(ROOT, "cache_dir"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
-    "data_split_filename": os.path.join(ROOT, "eps_split.pkl")
+    "data_split_filename": os.path.join(ROOT, "eps_split.pkl"),
 }
-    
+
 
 ##########################################
 # Train Common Params
@@ -130,7 +130,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 2 if run_local else 15
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 15
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 
@@ -159,60 +159,50 @@ def create_model(experiment: str) -> torch.nn.Module:
                     head_name="head_0",
                     # dropout_rate=dropout_rate,
                     conv_inputs=[("model.backbone_features", 384)],
-                    shared_classifier_head = ClassifierMLP(
-                        in_ch = 384,
-                        num_classes=2,
-                        layers_description=(256,),
-                        dropout_rate=0.1
+                    shared_classifier_head=ClassifierMLP(
+                        in_ch=384, num_classes=2, layers_description=(256,), dropout_rate=0.1
                     ),
                     pooling="avg",
                 ),
             ],
         )
 
-    else:
+    else:  # Experiments envolve data autoencoding
         encoding_channels = 3
 
         model = ModelMultiHead(
             conv_inputs=(("data.input.sqr_vector", 1),),
-            backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),
+            backbone=Encoder(in_channels=1, out_channels=encoding_channels, verbose=True),  # Encoder
             key_out_features="data.encoding",
             heads=[
                 # Decoder
                 HeadGeneric(
                     head_name="head_decoder",
                     conv_inputs=[("data.encoding", encoding_channels)],
-                    head = Decoder(
-                        in_channels=encoding_channels,
-                        out_channels=1,
-                        verbose=True
-                    ),
+                    head=Decoder(in_channels=encoding_channels, out_channels=1, verbose=True),
                 ),
                 # ResNet
                 HeadGeneric(
                     head_name="head_resnet",
                     conv_inputs=[("data.encoding", encoding_channels)],
-                    head = models.resnet50(pretrained=False, progress=True)
+                    head=models.resnet50(pretrained=False, progress=True),
                 ),
-                # Classifier 
+                # Classifier
                 HeadGlobalPoolingClassifier(
                     head_name="head_cls",
                     # dropout_rate=dropout_rate,
-                    conv_inputs=[("model.head_resnet", 1000)],  # change if use resnet, I think to 512, need to double check
-                    shared_classifier_head = ClassifierMLP(
-                        in_ch = 1000,
-                        num_classes=2,
-                        layers_description=(256,),
-                        dropout_rate=0.1
+                    conv_inputs=[
+                        ("model.head_resnet", 1000)
+                    ],  # change if use resnet, I think to 512, need to double check
+                    shared_classifier_head=ClassifierMLP(
+                        in_ch=1000, num_classes=2, layers_description=(256,), dropout_rate=0.1
                     ),
                     pooling="avg",
                 ),
-
             ],
         )
 
     return model
-
 
 
 #################################
@@ -223,10 +213,10 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     # Logger
     # ==============================================================================
     fuse_logger_start(output_path=paths["model_dir"], console_verbose_level=logging.INFO)
-    
+
     if run_local:
         print("Run LOCAL")
-        
+
     else:
         print("Run REMOTE")
 
@@ -245,7 +235,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     TRAIN_DATA = pd.read_csv(train_data_path)
     print("Loading data - Done!")
 
-    ### Split into train and validation sets
+    ### Split into train and validation
     all_dataset = EPSILON.dataset(
         paths["cache_dir"],
         data=TRAIN_DATA,
@@ -269,7 +259,9 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     for fold in train_common_params["data.validation_folds"]:
         validation_sample_ids += folds[fold]
 
-    train_dataset = EPSILON.dataset(paths["cache_dir"],data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids, train=True)
+    train_dataset = EPSILON.dataset(
+        paths["cache_dir"], data=TRAIN_DATA, reset_cache=True, samples_ids=train_sample_ids, train=True
+    )
 
     ## Create batch sampler
     print("- Create sampler:")
@@ -283,27 +275,32 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("- Create sampler: Done")
 
     ## Create dataloader
+    print("- Create train dataloader:")
     train_dataloader = DataLoader(
         dataset=train_dataset,
         batch_sampler=sampler,
         collate_fn=CollateDefault(),
         num_workers=train_common_params["data.train_num_workers"],
     )
+    print("- Create train dataloader: Done")
     print("Train Data: Done")
 
     #### Validation data
     print("Validation Data:")
 
-    validation_dataset = EPSILON.dataset(paths["cache_dir"], data=TRAIN_DATA,reset_cache=False, samples_ids=validation_sample_ids)
-
+    validation_dataset = EPSILON.dataset(
+        paths["cache_dir"], data=TRAIN_DATA, reset_cache=False, samples_ids=validation_sample_ids
+    )
 
     ## Create dataloader
+    print("- Create validation dataloader:")
     validation_dataloader = DataLoader(
         dataset=validation_dataset,
         batch_size=train_common_params["data.batch_size"],
         num_workers=train_common_params["data.validation_num_workers"],
         collate_fn=CollateDefault(),
     )
+    print("- Create validation dataloader: Done")
     print("Validation Data: Done")
 
     ## Create model
@@ -317,14 +314,48 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     if experiment == "MLP":
         # Use only classification loss
         losses = {
-            "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
+            "cls_loss": LossDefault(
+                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
+            ),
         }
     if experiment == "full tensor std":
         # TODO elaborate
         losses = {
-            "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0),
-            "ae_loss": LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0), # Euclidean loss between the original data and the data after encoding and decoding
-            "encoding_loss": OurCustomLoss(key_encoding="data.encoding", mode="std", weight=100.0), # Custom loss for the encoding, making the image more suitable for Image CLS
+            "cls_loss": LossDefault(
+                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
+            ),
+            "ae_loss": LossDefault(
+                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
+            ),  # Euclidean loss between the original data and the data after encoding and decoding
+            "encoding_loss": OurEncodingLoss(
+                key_encoding="data.encoding", mode="std", weight=100.0
+            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
+        }
+    if experiment == "disjoint patches std":
+        # TODO elaborate
+        losses = {
+            "cls_loss": LossDefault(
+                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
+            ),
+            "ae_loss": LossDefault(
+                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
+            ),  # Euclidean loss between the original data and the data after encoding and decoding
+            "encoding_loss": OurEncodingLoss(
+                key_encoding="data.encoding", mode="disjoint", weight=100.0
+            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
+        }
+    if experiment == "overlapping patches std":
+        # TODO elaborate
+        losses = {
+            "cls_loss": LossDefault(
+                pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0
+            ),
+            "ae_loss": LossDefault(
+                pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
+            ),  # Euclidean loss between the original data and the data after encoding and decoding
+            "encoding_loss": OurEncodingLoss(
+                key_encoding="data.encoding", mode="overlap", weight=100.0
+            ),  # Custom loss for the encoding, making the image more suitable for Image CLS
         }
 
     # =========================================================================================================
@@ -384,9 +415,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     )
 
     # train
-    pl_trainer.fit(
-        pl_module, train_dataloader, validation_dataloader
-    )
+    pl_trainer.fit(pl_module, train_dataloader, validation_dataloader)
 
     print("Fuse Train: Done")
 
@@ -423,7 +452,13 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     INFER_DATA = pd.read_csv(eval_data_path)
     print("Loading data - Done!")
 
-    infer_dataset = EPSILON.dataset(paths["cache_dir"],data=INFER_DATA, reset_cache=True, train=False, samples_ids=infer_common_params["data.samples_ids"])
+    infer_dataset = EPSILON.dataset(
+        paths["cache_dir"],
+        data=INFER_DATA,
+        reset_cache=True,
+        train=False,
+        samples_ids=infer_common_params["data.samples_ids"],
+    )
 
     ## Create dataloader
     infer_dataloader = DataLoader(

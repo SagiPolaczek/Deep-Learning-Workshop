@@ -9,10 +9,9 @@ import torch
 import scipy.signal as signal
 
 
-
 class OpKeysToList(OpBase):
     """
-    
+
     Example of use:
         (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
 
@@ -34,7 +33,6 @@ class OpKeysToList(OpBase):
         if keys != None and prefix != None:
             raise Exception("TODO")
 
-    
     def __call__(self, sample_dict: NDict, key_out: str):
         """
         TODO
@@ -45,7 +43,7 @@ class OpKeysToList(OpBase):
         if self._keys:
             for key in self._keys:
                 res.append(sample_dict[key])
-        
+
         elif self._prefix:
             for key in sample_dict.keypaths():
                 if key.startswith(self._prefix):
@@ -55,7 +53,6 @@ class OpKeysToList(OpBase):
 
         sample_dict[key_out] = res
         return sample_dict
-
 
 
 class OpConvImageKernel(OpBase):
@@ -68,7 +65,7 @@ class OpConvImageKernel(OpBase):
         self._base_image = base_image
 
     def __call__(self, sample_dict: NDict, key_in_kernel: str, key_out: str) -> NDict:
-        
+
         kernel = sample_dict[key_in_kernel]
         image = signal.convolve2d(self._base_image, kernel)
 
@@ -77,7 +74,7 @@ class OpConvImageKernel(OpBase):
         # print(f"DEBUG: image shape = {image.shape}")
         # print(f"DEBUG: image = {image}")
         return sample_dict
-        
+
 
 class OpSubtractMean(OpBase):
     """
@@ -126,7 +123,7 @@ class OpRenameKey(OpBase):
 
     def __call__(self, sample_dict: NDict, key_old: str, key_new: str, delete_old: bool = True):
         """
-        
+
         :param key_old:
         :param key_new:
         :param delete_old:
@@ -139,11 +136,13 @@ class OpRenameKey(OpBase):
 
         return sample_dict
 
+
 class OpEpsilonRenameLabel(OpBase):
     """
     rename labels: -1 -> 0
                     1 -> 1
     """
+
     def __call__(self, sample_dict: NDict, key: str) -> NDict:
         """
         :param key: key for label
@@ -155,17 +154,17 @@ class OpEpsilonRenameLabel(OpBase):
         return sample_dict
 
 
-
 class OpPadVecInOneSide(OpBase):
     """
     Pad vector in one side.
-    
+
     [1,2,3] with padding=3 -> [1,2,3,0,0,0]
 
     as oppose to other pad funcs where we get [0,0,0,1,2,3,0,0,0]
     """
+
     def __call__(self, sample_dict: NDict, key_in: str, key_out: str, padding: int):
-        
+
         vec: np.ndarray = sample_dict[key_in]
 
         padded_vec = np.pad(vec, (0, padding))

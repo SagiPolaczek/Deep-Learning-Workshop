@@ -64,7 +64,7 @@ PATHS = {
     "cache_dir": os.path.join(ROOT, "cache_dir"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
-    "data_split_filename": os.path.join(ROOT, "higgs_split.pkl")
+    "data_split_filename": os.path.join(ROOT, "higgs_split.pkl"),
 }
 
 ##########################################
@@ -109,7 +109,9 @@ def create_model() -> torch.nn.Module:
         conv_inputs=(("data.input.img", 3),),
         backbone={
             "Resnet18": BackboneResnet(pretrained=False, in_channels=1, name="resnet18"),
-            "InceptionResnetV2": BackboneInceptionResnetV2(input_channels_num=1, logical_units_num=43, pretrained_weights_url=None),
+            "InceptionResnetV2": BackboneInceptionResnetV2(
+                input_channels_num=1, logical_units_num=43, pretrained_weights_url=None
+            ),
         }["InceptionResnetV2"],
         heads=[
             HeadGlobalPoolingClassifier(
@@ -132,8 +134,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     # ==============================================================================
     # Logger
     # ==============================================================================
-    fuse_logger_start(
-        output_path=paths["model_dir"], console_verbose_level=logging.INFO)
+    fuse_logger_start(output_path=paths["model_dir"], console_verbose_level=logging.INFO)
 
     print("Fuse Train")
     print(f'model_dir={paths["model_dir"]}')
@@ -149,12 +150,24 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if mode == "debug":
         train_sample_ids = [
-            "0", "6", "7", "9", "15",  # class s
-            "1", "2", "3", "4", "5",  # class b
+            "0",
+            "6",
+            "7",
+            "9",
+            "15",  # class s
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",  # class b
         ]
         validation_sample_ids = [
-            "31", "32", "36",  # class s
-            "33", "34", "35",  # class b
+            "31",
+            "32",
+            "36",  # class s
+            "33",
+            "34",
+            "35",  # class b
         ]
 
     else:
@@ -184,8 +197,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         for fold in train_common_params["data.validation_folds"]:
             validation_sample_ids += folds[fold]
 
-    train_dataset = HIGGS.dataset(
-        paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=train_sample_ids)
+    train_dataset = HIGGS.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=train_sample_ids)
 
     # Create batch sampler
     print("- Create sampler:")
@@ -212,7 +224,8 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("Validation Data:")
 
     validation_dataset = HIGGS.dataset(
-        paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids)
+        paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids
+    )
 
     # Create dataloader
     validation_dataloader = DataLoader(
@@ -247,18 +260,15 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         [
             # will apply argmax
             ("op", MetricApplyThresholds(pred="model.output.head_0")),
-            ("auc", MetricAUCROC(pred="model.output.head_0",
-             target="data.label", class_names=class_names)),
-            ("accuracy", MetricAccuracy(
-                pred="results:metrics.op.cls_pred", target="data.label")),
+            ("auc", MetricAUCROC(pred="model.output.head_0", target="data.label", class_names=class_names)),
+            ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
         ]
     )
 
     # use the same metrics in validation as well
     validation_metrics = copy.deepcopy(train_metrics)
 
-    best_epoch_source = dict(
-        monitor="validation.metrics.auc.macro_avg", mode="max")
+    best_epoch_source = dict(monitor="validation.metrics.auc.macro_avg", mode="max")
 
     # =====================================================================================
     #  Train - using PyTorch Lightning
@@ -275,12 +285,10 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # create scheduler
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    lr_sch_config = dict(scheduler=lr_scheduler,
-                         monitor="validation.losses.total_loss")
+    lr_sch_config = dict(scheduler=lr_scheduler, monitor="validation.losses.total_loss")
 
     # optimizier and lr sch - see pl.LightningModule.configure_optimizers return value for all options
-    optimizers_and_lr_schs = dict(
-        optimizer=optimizer, lr_scheduler=lr_sch_config)
+    optimizers_and_lr_schs = dict(optimizer=optimizer, lr_scheduler=lr_sch_config)
 
     # create instance of PL module - FuseMedML generic version
     pl_module = LightningModuleDefault(
@@ -304,8 +312,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # train
     pl_trainer.fit(
-        pl_module, train_dataloader, validation_dataloader, ckpt_path=train_common_params[
-            "trainer.ckpt_path"]
+        pl_module, train_dataloader, validation_dataloader, ckpt_path=train_common_params["trainer.ckpt_path"]
     )
 
     print("Fuse Train: Done")
@@ -317,8 +324,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 INFER_COMMON_PARAMS = {}
 INFER_COMMON_PARAMS["data.num_workers"] = TRAIN_COMMON_PARAMS["data.train_num_workers"]
 INFER_COMMON_PARAMS["data.batch_size"] = 4
-INFER_COMMON_PARAMS["infer_filename"] = os.path.join(
-    PATHS["inference_dir"], "validation_set_infer.pickle")
+INFER_COMMON_PARAMS["infer_filename"] = os.path.join(PATHS["inference_dir"], "validation_set_infer.pickle")
 # Fuse TIP: possible values are 'best', 'last' or epoch_index.
 INFER_COMMON_PARAMS["checkpoint"] = "best"
 INFER_COMMON_PARAMS["data.infer_folds"] = [4]  # infer validation set
@@ -330,14 +336,11 @@ INFER_COMMON_PARAMS["data.infer_folds"] = [4]  # infer validation set
 
 def run_infer(paths: dict, infer_common_params: dict) -> None:
     create_dir(paths["inference_dir"])
-    infer_file = os.path.join(
-        paths["inference_dir"], infer_common_params["infer_filename"])
-    checkpoint_file = os.path.join(
-        paths["model_dir"], infer_common_params["checkpoint"])
+    infer_file = os.path.join(paths["inference_dir"], infer_common_params["infer_filename"])
+    checkpoint_file = os.path.join(paths["model_dir"], infer_common_params["checkpoint"])
 
     # Logger
-    fuse_logger_start(
-        output_path=paths["inference_dir"], console_verbose_level=logging.INFO)
+    fuse_logger_start(output_path=paths["inference_dir"], console_verbose_level=logging.INFO)
     print("Fuse Inference")
     print(f"infer_filename={infer_file}")
 
@@ -350,8 +353,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         infer_sample_ids += folds[fold]
 
     # Create dataset
-    infer_dataset = HIGGS.dataset(
-        paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=infer_sample_ids)
+    infer_dataset = HIGGS.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=infer_sample_ids)
 
     # Create dataloader
     infer_dataloader = DataLoader(
@@ -391,8 +393,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         devices=infer_common_params["trainer.num_devices"],
         auto_select_gpus=True,
     )
-    predictions = pl_trainer.predict(
-        pl_module, infer_dataloader, return_predictions=True)
+    predictions = pl_trainer.predict(pl_module, infer_dataloader, return_predictions=True)
 
     # convert list of batch outputs into a dataframe
     infer_df = convert_predictions_to_dataframe(predictions)
@@ -409,8 +410,7 @@ EVAL_COMMON_PARAMS["infer_filename"] = INFER_COMMON_PARAMS["infer_filename"]
 
 
 def run_eval(paths: dict, eval_common_params: dict) -> None:
-    infer_file = os.path.join(
-        paths["inference_dir"], eval_common_params["infer_filename"])
+    infer_file = os.path.join(paths["inference_dir"], eval_common_params["infer_filename"])
 
     fuse_logger_start(output_path=None, console_verbose_level=logging.INFO)
     lgr = logging.getLogger("Fuse")
@@ -422,15 +422,13 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
             # will apply argmax
             ("op", MetricApplyThresholds(pred="model.output.head_0")),
             ("auc", MetricAUCROC(pred="model.output.head_0", target="data.label")),
-            ("accuracy", MetricAccuracy(
-                pred="results:metrics.op.cls_pred", target="data.label")),
+            ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
             (
                 "roc",
                 MetricROCCurve(
                     pred="model.output.head_0",
                     target="data.label",
-                    output_filename=os.path.join(
-                        paths["inference_dir"], "roc_curve.png"),
+                    output_filename=os.path.join(paths["inference_dir"], "roc_curve.png"),
                 ),
             ),
         ]

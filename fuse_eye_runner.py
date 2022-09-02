@@ -61,7 +61,7 @@ from fuse_eye import EYE
 ##########################################
 # Debug modes
 ##########################################
-run_local = True # set 'False' if running server
+run_local = True  # set 'False' if running server
 mode = "debug" if run_local else "default"
 debug = FuseDebug(mode)
 
@@ -76,7 +76,7 @@ if run_local:
     DATA_DIR = "./data/raw_data/eye_movements.arff"
 else:
     ROOT = "/tmp/_sagi/_examples/eye"
-    DATA_DIR="./sagi_dl_workshop/data/raw_data/eye_movements.arff"
+    DATA_DIR = "./sagi_dl_workshop/data/raw_data/eye_movements.arff"
 
 model_dir = os.path.join(ROOT, "model_dir")
 PATHS = {
@@ -86,7 +86,7 @@ PATHS = {
     "cache_dir": os.path.join(ROOT, "cache_dir"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
-    "data_split_filename": os.path.join(ROOT, "eye_split.pkl")
+    "data_split_filename": os.path.join(ROOT, "eye_split.pkl"),
 }
 
 ##########################################
@@ -137,12 +137,14 @@ def create_model() -> torch.nn.Module:
             HeadGlobalPoolingClassifier(
                 head_name="head_0",
                 # dropout_rate=dropout_rate,
-                conv_inputs=[("model.backbone_features", 1536)],  # change if use resnet, I think to 512, need to double check
+                conv_inputs=[
+                    ("model.backbone_features", 1536)
+                ],  # change if use resnet, I think to 512, need to double check
                 num_classes=3,
                 pooling="avg",
             ),
         ],
-    )    
+    )
     return model
 
 
@@ -170,16 +172,36 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     if mode == "debug":
         print("GO DEBUG!")
         sample_ids = [
-            "0", "1", "2", "3", "4", "19", "20", "21",  # class 0
-            "91", "92", "93", "94", "95", "28", "27", "26", # class 1
-            "10931", "10932", "10933", "10934", "10935", "6", "7", "8", # class 2
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "19",
+            "20",
+            "21",  # class 0
+            "91",
+            "92",
+            "93",
+            "94",
+            "95",
+            "28",
+            "27",
+            "26",  # class 1
+            "10931",
+            "10932",
+            "10933",
+            "10934",
+            "10935",
+            "6",
+            "7",
+            "8",  # class 2
         ]
         TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1
     else:
         sample_ids = None
 
-    train_common_params["data.samples_ids"] = sample_ids # temp and ugly
-
+    train_common_params["data.samples_ids"] = sample_ids  # temp and ugly
 
     ## TODO - list your sample ids:
     # Fuse TIP - splitting the sample_ids to folds can be done by fuse.data.utils.split.dataset_balanced_division_to_folds().
@@ -232,8 +254,9 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     #### Validation data
     print("Validation Data:")
 
-    validation_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids)
-
+    validation_dataset = EYE.dataset(
+        paths["data_dir"], paths["cache_dir"], reset_cache=False, samples_ids=validation_sample_ids
+    )
 
     ## Create dataloader
     validation_dataloader = DataLoader(
@@ -360,7 +383,6 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
 
     # Create dataset
     infer_dataset = EYE.dataset(paths["data_dir"], paths["cache_dir"], reset_cache=True, samples_ids=infer_sample_ids)
-
 
     ## Create dataloader
     infer_dataloader = DataLoader(

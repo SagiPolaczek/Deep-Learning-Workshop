@@ -14,8 +14,9 @@ val_step = 300  # The number of iterations for determining algorithm convergence
 
 # Import the example data and linearly scale each feature so that its minimum and maximum values are 0 and 1,
 # respectively.
-data = pd.read_csv('../Data/Data.txt', low_memory=False, sep='\t', engine='c', na_values=['na', '-', ''],
-                   header=0, index_col=0)
+data = pd.read_csv(
+    "../Data/Data.txt", low_memory=False, sep="\t", engine="c", na_values=["na", "-", ""], header=0, index_col=0
+)
 data = data.iloc[:, :num]
 norm_data = min_max_transform(data.values)
 norm_data = pd.DataFrame(norm_data, columns=data.columns, index=data.index)
@@ -24,10 +25,19 @@ norm_data = pd.DataFrame(norm_data, columns=data.columns, index=data.index)
 # Run the IGTD algorithm using (1) the Euclidean distance for calculating pairwise feature distances and pariwise pixel
 # distances and (2) the absolute function for evaluating the difference between the feature distance ranking matrix and
 # the pixel distance ranking matrix. Save the result in Test_1 folder.
-fea_dist_method = 'Jensen-shannon'
-image_dist_method = 'Euclidean'
-error = 'squared'
-result_dir = '../IGTD/IGTD/Results-shanon/Test_1'
+fea_dist_method = "Jensen-shannon"
+image_dist_method = "Euclidean"
+error = "squared"
+result_dir = "../IGTD/IGTD/Results-shanon/Test_1"
 os.makedirs(name=result_dir, exist_ok=True)
-table_to_image(norm_data, [num_row, num_col], fea_dist_method, image_dist_method, save_image_size,
-               max_step, val_step, result_dir, error)
+table_to_image(
+    norm_data,
+    [num_row, num_col],
+    fea_dist_method,
+    image_dist_method,
+    save_image_size,
+    max_step,
+    val_step,
+    result_dir,
+    error,
+)
