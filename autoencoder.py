@@ -87,7 +87,7 @@ class OurEncodingLoss(LossBase):
         self._mode = mode
         self._weight = weight
 
-        supported_modes = ["std", "disjoint", "overlap"]
+        supported_modes = ["full", "disjoint", "overlap"]
         assert mode in supported_modes, "not supported mode."
 
     def forward(self, batch_dict: NDict) -> torch.Tensor:
@@ -95,7 +95,7 @@ class OurEncodingLoss(LossBase):
         encoding: torch.Tensor = batch_dict[self._key_encoding]
         encoding = encoding.clone().detach()
 
-        if self._mode == "std":
+        if self._mode == "full":
             loss = torch.std(encoding)
 
         if self._mode == "disjoint":

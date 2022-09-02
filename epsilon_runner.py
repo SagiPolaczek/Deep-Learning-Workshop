@@ -63,13 +63,13 @@ import torchvision.models as models
 # Experiments
 ##########################################
 run_local = True  # set 'False' if running remote
-experiment = "overlapping patches std"  # Choose from supported experiments
+experiment = "MLP"  # Choose from supported experiments
 
 supported_experiments = [
     "MLP",  # TODO elaborate
-    "full tensor std",
-    "disjoint patches std",  # TODO elaborate
-    "overlapping patches std",  # TODO elaborate
+    "full",
+    "disjoint",  # TODO elaborate
+    "overlap",  # TODO elaborate
 ]
 
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
@@ -151,7 +151,7 @@ def create_model(experiment: str) -> torch.nn.Module:
             backbone=BackboneMultilayerPerceptron(mlp_input_size=2000),
             heads=[
                 HeadGlobalPoolingClassifier(
-                    head_name="head_0",
+                    head_name="head_cls",
                     # dropout_rate=dropout_rate,
                     conv_inputs=[("model.backbone_features", 384)],
                     shared_classifier_head=ClassifierMLP(
@@ -313,17 +313,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if experiment != "MLP":
         losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
-
-    if experiment == "full tensor std":
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="std", weight=100.0)
-
-    if experiment == "disjoint patches std":
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="disjoint", weight=100.0)
-
-    if experiment == "overlapping patches std":
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode="overlap", weight=100.0)
-
-
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=100.0)
 
     # =========================================================================================================
     # Metrics
