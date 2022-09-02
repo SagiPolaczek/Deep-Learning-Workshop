@@ -63,7 +63,7 @@ import torchvision.models as models
 # Experiments
 ##########################################
 run_local = True  # set 'False' if running remote
-experiment = "MLP"  # Choose from supported experiments
+experiment = "overlap"  # Choose from supported experiments
 
 supported_experiments = [
     "MLP",  # TODO elaborate
@@ -96,7 +96,7 @@ else:
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
-cache_suffix = "_MLP"
+cache_suffix = "_overlap"
 PATHS = {
     "model_dir": model_dir,
     "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),

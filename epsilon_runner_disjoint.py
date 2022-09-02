@@ -62,8 +62,8 @@ import torchvision.models as models
 ##########################################
 # Experiments
 ##########################################
-run_local = True  # set 'False' if running remote
-experiment = "MLP"  # Choose from supported experiments
+run_local = False  # set 'False' if running remote
+experiment = "disjoint"  # Choose from supported experiments
 
 supported_experiments = [
     "MLP",  # TODO elaborate
@@ -77,7 +77,7 @@ assert experiment in supported_experiments, f"runner doesn't support experiment 
 ##########################################
 # Debug modes
 ##########################################
-mode = "False"  # switch to "debug" in a debug session
+mode = "default"  # switch to "debug" in a debug session
 debug = FuseDebug(mode)
 
 ##########################################
@@ -96,7 +96,7 @@ else:
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
-cache_suffix = "_MLP"
+cache_suffix = "_disjoint"
 PATHS = {
     "model_dir": model_dir,
     "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),
