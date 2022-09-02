@@ -88,8 +88,8 @@ NUM_GPUS = 1
 # TODO switch to os.environ (?)
 ROOT = "./_examples/epsilon"
 if run_local:
-    train_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/train_debug_1000.csv"
-    eval_data_path = "/Users/sagipolaczek/Documents/Studies/git-repos/DLW/data/raw_data/eps/test_debug_200.csv"
+    train_data_path = "./DLW/data/raw_data/eps/train_debug_1000.csv"
+    eval_data_path = "./DLW/data/raw_data/eps/test_debug_200.csv"
 else:
     train_data_path = "./fuse_workshop/_examples/epsilon/data/train_data.csv"
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
@@ -98,7 +98,8 @@ else:
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 PATHS = {
     "model_dir": model_dir,
-    "cache_dir": os.path.join(ROOT, "cache_dir"),
+    "cache_dir_train": os.path.join(ROOT, "cache_dir_train"),
+    "cache_dir_eval": os.path.join(ROOT, "cache_dir_eval"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "eps_split.pkl"),
@@ -217,7 +218,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     print("Fuse Train")
     print(f'model_dir={paths["model_dir"]}')
-    print(f'cache_dir={paths["cache_dir"]}')
+    print(f'cache_dir={paths["cache_dir_train"]}')
 
     # ==============================================================================
     # Data
@@ -232,7 +233,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     ### Split into train and validation
     all_dataset = EPSILON.dataset(
-        paths["cache_dir"],
+        paths["cache_dir_train"],
         data=TRAIN_DATA,
         train=True,
         reset_cache=False,
@@ -255,7 +256,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         validation_sample_ids += folds[fold]
 
     train_dataset = EPSILON.dataset(
-        paths["cache_dir"], data=TRAIN_DATA, reset_cache=False, samples_ids=train_sample_ids, train=True
+        paths["cache_dir_train"], data=TRAIN_DATA, reset_cache=False, samples_ids=train_sample_ids, train=True
     )
 
     ## Create batch sampler
@@ -284,7 +285,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     print("Validation Data:")
 
     validation_dataset = EPSILON.dataset(
-        paths["cache_dir"], data=TRAIN_DATA, reset_cache=False, samples_ids=validation_sample_ids
+        paths["cache_dir_train"], data=TRAIN_DATA, reset_cache=False, samples_ids=validation_sample_ids
     )
 
     ## Create dataloader
@@ -410,7 +411,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
     print("Loading data - Done!")
 
     infer_dataset = EPSILON.dataset(
-        paths["cache_dir"],
+        paths["cache_dir_eval"],
         data=INFER_DATA,
         reset_cache=False,
         train=False,

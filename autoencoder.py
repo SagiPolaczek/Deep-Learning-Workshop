@@ -74,7 +74,7 @@ class OurEncodingLoss(LossBase):
     """
     TODO elaborate
 
-    mode == "std":
+    mode == "full":
 
     mode == "disjoint":
 
@@ -93,25 +93,28 @@ class OurEncodingLoss(LossBase):
     def forward(self, batch_dict: NDict) -> torch.Tensor:
         # extract params from batch_dict
         encoding: torch.Tensor = batch_dict[self._key_encoding]
-        encoding = encoding.clone().detach()
+        encoding = encoding.clone().detach()  # shape = 64, 3, 45, 45
 
         if self._mode == "full":
             loss = torch.std(encoding)
 
         if self._mode == "disjoint":
             # disjoint patches
-            disjoint_patches = encoding.unfold(2, 5, 5).unfold(3, 5, 5)
+            disjoint_patches = encoding.unfold(2, 5, 5).unfold(3, 5, 5)  # 64, 3, 9, 9, 5, 5
             loss = self.compute_patches_std(disjoint_patches)
 
         if self._mode == "overlap":
             # overlapping patches
-            overlapping_patches = encoding.unfold(2, 5, 3).unfold(3, 5, 3)
+            overlapping_patches = encoding.unfold(2, 5, 3).unfold(3, 5, 3)  # 64, 3, 14, 14, 5, 5
             loss = self.compute_patches_std(overlapping_patches)
 
         loss *= self._weight
         return loss
 
     def compute_patches_std(self, patches: torch.Tensor):
+        """
+        TODO elaborate
+        """
         num_samples = patches.shape[0]
         num_channels = patches.shape[1]
 
