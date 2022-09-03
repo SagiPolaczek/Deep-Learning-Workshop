@@ -77,13 +77,13 @@ assert experiment in supported_experiments, f"runner doesn't support experiment 
 ##########################################
 # Debug modes
 ##########################################
-mode = "False"  # switch to "debug" in a debug session
+mode = "default"  # switch to "debug" in a debug session
 debug = FuseDebug(mode)
 
 ##########################################
 # Paths
 ##########################################
-NUM_GPUS = 1
+NUM_GPUS = 0 if run_local else 1
 
 # TODO switch to os.environ (?)
 ROOT = "./_examples/epsilon"
@@ -504,10 +504,10 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 # Run
 ######################################
 if __name__ == "__main__":
-    if not run_local:
-        # uncomment if you want to use specific gpus instead of automatically looking for free ones
-        force_gpus = None  # [0]
-        GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
+
+    # uncomment if you want to use specific gpus instead of automatically looking for free ones
+    force_gpus = None  # [0]
+    GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
 
