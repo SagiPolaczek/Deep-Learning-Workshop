@@ -82,10 +82,8 @@ debug = FuseDebug(mode)
 
 ##########################################
 # Paths
+# NOTE Please change paths to suit your env
 ##########################################
-NUM_GPUS = 0 if run_local else 1
-
-# TODO switch to os.environ (?)
 ROOT = "./_examples/epsilon"
 if run_local:
     train_data_path = "./DLW/data/raw_data/eps/train_debug_1000.csv"
@@ -106,6 +104,10 @@ PATHS = {
     "data_split_filename": os.path.join(ROOT, "eps_split.pkl"),
 }
 
+##########################################
+# GPUs
+##########################################
+NUM_GPUS = 0 if run_local else 1
 
 ##########################################
 # Train Common Params
@@ -117,12 +119,10 @@ TRAIN_COMMON_PARAMS = {}
 TRAIN_COMMON_PARAMS["data.batch_size"] = 64
 TRAIN_COMMON_PARAMS["data.train_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 10
-TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2, 3]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [4]
-TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local else None
-
+TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local else None  # 'None' implies the use all samples
 
 # ===============
 # PL Trainer
@@ -144,8 +144,12 @@ TRAIN_COMMON_PARAMS["opt.weight_decay"] = 1e-3
 
 def create_model(experiment: str) -> torch.nn.Module:
     """
-    TODO elaborate
-    :param experiment:
+    Create the model according to the current experiment:
+
+        MLP - creates a MLP based model
+        full / disjoint / overlap - creates a model with autoencoder and resnet cls that supports the use of the encoding loss.
+
+    :param experiment: see class desc and "supported_experiments" for details.
     """
     if experiment == "MLP":
         model = ModelMultiHead(
@@ -164,7 +168,7 @@ def create_model(experiment: str) -> torch.nn.Module:
             ],
         )
 
-    else:  # Experiments envolve data autoencoding
+    else:  # Experiments envolve data (auto)encoding
         encoding_channels = 3
 
         model = ModelMultiHead(
@@ -250,10 +254,10 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     )
 
     train_sample_ids = []
-    for fold in train_common_params["data.train_folds"]:
+    for fold in train_common_params["data.train_folds"]:  # 0,1,2,3
         train_sample_ids += folds[fold]
     validation_sample_ids = []
-    for fold in train_common_params["data.validation_folds"]:
+    for fold in train_common_params["data.validation_folds"]:  # 4
         validation_sample_ids += folds[fold]
 
     train_dataset = EPSILON.dataset(
@@ -307,7 +311,11 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # ==========================================================================================================================================
     #   Loss
-    #   TODO Elaborate
+    #   
+    #   For the MLP experiment we use solely the CE loss function on the prediction-label (classification)
+    #   For the other experiments that envolve the autoencoding, we add two losses:
+    #       1. ae_loss -> a MSE loss on the autoencoder
+    #       2. encoding_loss -> custom loss on the encoding itself
     # ==========================================================================================================================================
     losses = {
         "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
