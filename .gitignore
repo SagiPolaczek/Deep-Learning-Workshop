@@ -144,3 +144,6 @@ raw_data
 temp_eye_nb.ipynb
 higgs_notebook.ipynb
 _examples
+temp_*
+*cached*
+*cache_dir*
