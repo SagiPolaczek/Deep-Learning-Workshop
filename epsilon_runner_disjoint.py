@@ -52,7 +52,7 @@ from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_epsilon import EPSILON
-from autoencoder import Encoder, Decoder, OurEncodingLoss
+from utils.autoencoder import Encoder, Decoder, OurEncodingLoss
 import torchvision.models as models
 
 ###########################################################################################################
