@@ -64,26 +64,19 @@ class HIGGS:
     DATASET_VER = 0
 
     @staticmethod
-    def download(data_path: str, sample_ids_to_download: Optional[Sequence[str]] = None) -> None:
-        """
-        TODO
-        """
-        pass
-
-    @staticmethod
-    def sample_ids(data_path: str) -> List[str]:
+    def sample_ids(train: bool = True) -> List[str]:
         """
         Gets the samples ids in trainset.
         """
-        # data = arff.loadarff(data_path)
-        # df = pd.DataFrame(data[0])
-        data = pd.read_csv("./data/raw_data/training.csv")
-        samples = list(range(data.shape[0]))
+        if train:
+            samples = list(range(250000))
+        else:
+            samples = list(range(550000))
         return samples
 
     @staticmethod
-    def static_pipeline(data_path: str) -> PipelineDefault:
-        df = pd.read_csv("./data/raw_data/training.csv")
+    def static_pipeline(data: str) -> PipelineDefault:
+        df = pd.read_csv("./data/raw_data/higgs/training.csv")
         df.drop(["EventId"], axis=1, inplace=True)
         # TODO: CHANGE THIS APPLY FUNC
         df["label"] = df["Label"].apply(lambda val: 1 if val == "s" else 0)
@@ -112,11 +105,13 @@ class HIGGS:
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpToNumpy(), dict(key="data.vector", dtype=float)),
                 # Step 4: reshape to kerenl - shuki
-                (OpReshapeVector(), dict(key_in_vector="data.vector", key_out="data.kernel")),
+                (OpReshapeVector(), dict(
+                    key_in_vector="data.vector", key_out="data.kernel")),
                 # Step 4.1: subract mean
                 (OpSubtractMean(), dict(key="data.kernel")),
                 # Step 5: Convolve with base image - sagi
-                (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
+                (OpConvImageKernel(base_image=base_image), dict(
+                    key_in_kernel="data.kernel", key_out="data.input.img")),
                 # Load label TODO
                 (
                     OpReadDataframe(
@@ -141,17 +136,12 @@ class HIGGS:
     def dynamic_pipeline(
         train: bool = False, append: Optional[Sequence[Tuple[OpBase, dict]]] = None
     ) -> PipelineDefault:
-        """
-        Get suggested dynamic pipeline. including pre-processing that might be modified and augmentation operations.
-        :param train: add augmentation if True
-        :param append: pipeline steps to append at the end of the suggested pipeline
-        """
 
         dynamic_pipeline = [
             # Convert to tensor
             (OpToTensor(), dict(key="data.input.img", dtype=torch.float)),
             (OpExpandTensor(), dict(key="data.input.img")),
-            (OpPrintShapes(num_samples=1), dict()),
+            # (OpPrintShapes(num_samples=1), dict()),
         ]
 
         return PipelineDefault("dynamic", dynamic_pipeline)
@@ -159,14 +149,13 @@ class HIGGS:
 
     @staticmethod
     def dataset(
-        data_path: str,
         cache_path: str,
+        data: Optional[pd.DataFrame] = None,
+        data_path: Optional[str] = None,
         train: bool = False,
         reset_cache: bool = False,
         num_workers: int = 10,
-        append_dyn_pipeline: Optional[Sequence[Tuple[OpBase, dict]]] = None,
         samples_ids: Optional[Sequence[Hashable]] = None,
-        use_cacher: bool = True,
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -179,13 +168,20 @@ class HIGGS:
         # Download data if doesn't exist
         # TODO (?)
 
+        assert (data is not None and data_path is None) or (
+            data is None and data_path is not None)
+
+        if data_path:
+            # read data
+            data = None  # TODO
+            pass
+
         if samples_ids is None:
-            samples_ids = HIGGS.sample_ids(data_path)
+            samples_ids = HIGGS.sample_ids(train)
 
-        static_pipeline = HIGGS.static_pipeline(data_path)
-        dynamic_pipeline = HIGGS.dynamic_pipeline(train, append=append_dyn_pipeline)
+        static_pipeline = HIGGS.static_pipeline(data=data)
+        dynamic_pipeline = HIGGS.dynamic_pipeline()
 
-        # TODO: delete or reactivate
         cacher = SamplesCacher(
             f"higgs_cache_ver{HIGGS.DATASET_VER}",
             static_pipeline,
@@ -193,9 +189,6 @@ class HIGGS:
             restart_cache=reset_cache,
             workers=num_workers,
         )
-
-        if not use_cacher:  # debugging
-            cacher = None
 
         my_dataset = DatasetDefault(
             sample_ids=samples_ids,
@@ -249,25 +242,43 @@ class HIGGS:
 
 
 if __name__ == "__main__":
+    # Main script for testing data pipelines
     run_local = True
+    debug = True
 
     # switch to os.environ (?)
     if run_local:
         ROOT = "./_examples/higgs"
-        DATA_DIR = "./data/raw_data/training.csv"
+        DATA_DIR = ""
+        samples_ids = [i for i in range(1000)]
     else:
-        ROOT = "./_examples/eye"
-        DATA_DIR = ".data/raw_data/training.csv"
+        ROOT = "/tmp/_shaked/_examples/higgs"
+        DATA_DIR = ""
+        samples_ids = None
 
     cache_dir = os.path.join(ROOT, "cache_dir")
 
-    sp = HIGGS.static_pipeline(DATA_DIR)
-    # print(sp)
+    if debug:
+        print("Loading debug data")
+        train_data = pd.read_csv(
+            "./data/raw_data/higgs/training.csv"
+        )
+        test_data = pd.read_csv(
+            "./data/raw_data/higgs/test.csv"
+        )
+        print("Done loading debug data!")
 
-    create_dir("./cacher")
-    dataset = HIGGS.dataset(DATA_DIR, cache_dir, reset_cache=True, samples_ids=None, use_cacher=False)
-    assert len(dataset) == 250000
+    else:
+        print("Downloading data...")
+        train_data, test_data = higgs()
+        print("Done downloading data!")
 
+    # Testing static pipeline initialization
+    sp = HIGGS.static_pipeline(data=train_data)
+
+    dataset = HIGGS.dataset(
+        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids)
+
+    # all data pipeline will be executed
     sample = dataset[0]
-    # sample.print_tree()
-    print("DONE!")
+    print("Done!")
