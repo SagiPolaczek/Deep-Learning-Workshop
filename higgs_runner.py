@@ -86,15 +86,15 @@ debug = FuseDebug(mode)
 ##########################################
 ROOT = "./_examples/higgs"
 if run_local:
-    train_data_path = "./data/raw_data/higgs/training.csv"
-    eval_data_path = "./data/raw_data/higgs/test.csv"
+    train_data_path = "./data/raw_data/higgs/debug_training_200.csv"
+    eval_data_path = "./data/raw_data/higgs/debug_test_1000.csv"
 else:
     train_data_path = "./fuse_workshop/_examples/higgs/data/train_data.csv"
     eval_data_path = "./fuse_workshop/_examples/higgs/data/test_data.csv"
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
-cache_suffix = "_MLP"
+cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
     "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),
@@ -107,7 +107,7 @@ PATHS = {
 ##########################################
 # GPUs
 ##########################################
-NUM_GPUS = 0 if run_local else 1
+NUM_GPUS = 1
 
 
 ##########################################
@@ -147,7 +147,7 @@ TRAIN_COMMON_PARAMS["opt.weight_decay"] = 1e-3
 # ===================================================================================================================
 
 
-def create_model() -> torch.nn.Module:
+def create_model(experiment: str) -> torch.nn.Module:
 
     model = ModelMultiHead(
         conv_inputs=(("data.input.img", 3),),
@@ -159,7 +159,7 @@ def create_model() -> torch.nn.Module:
         }["InceptionResnetV2"],
         heads=[
             HeadGlobalPoolingClassifier(
-                head_name="head_0",
+                head_name="head_cls",
                 # dropout_rate=dropout_rate,
                 # change if use resnet, i think to 512, need to double check
                 conv_inputs=[("model.backbone_features", 1536)],
@@ -271,8 +271,8 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # Create model
     print("Model:")
-    # model = create_model(experiment=experiment)
-    model = create_model()
+    model = create_model(experiment=experiment)
+
     print("Model: Done")
 
     # ==========================================================================================================================================
@@ -379,8 +379,7 @@ INFER_COMMON_PARAMS["trainer.accelerator"] = TRAIN_COMMON_PARAMS["trainer.accele
 
 def run_infer(paths: dict, infer_common_params: dict) -> None:
     create_dir(paths["inference_dir"])
-    infer_file = os.path.join(
-        paths["inference_dir"], infer_common_params["infer_filename"])
+    infer_file = INFER_COMMON_PARAMS["infer_filename"]
     checkpoint_file = os.path.join(
         paths["model_dir"], infer_common_params["checkpoint"])
 
@@ -389,14 +388,6 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         output_path=paths["inference_dir"], console_verbose_level=logging.INFO)
     print("Fuse Inference")
     print(f"infer_filename={infer_file}")
-
-    # Data
-    # assume exists and created in train func
-    folds = load_pickle(paths["data_split_filename"])
-
-    infer_sample_ids = []
-    for fold in infer_common_params["data.infer_folds"]:
-        infer_sample_ids += folds[fold]
 
     # Create dataset
     print("Loading data...")
@@ -410,6 +401,7 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
         train=False,
         samples_ids=infer_common_params["data.samples_ids"],
     )
+
     # Create dataloader
     infer_dataloader = DataLoader(
         dataset=infer_dataset,
@@ -500,9 +492,8 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 ######################################
 if __name__ == "__main__":
 
-    # uncomment if you want to use specific gpus instead of automatically looking for free ones
-    force_gpus = None  # [0]
-    GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
+    if not run_local:
+        GPU.choose_and_enable_multiple_gpus(NUM_GPUS)
 
     # Options: 'train', 'infer', 'eval'
     RUNNING_MODES = ["train", "infer", "eval"]
