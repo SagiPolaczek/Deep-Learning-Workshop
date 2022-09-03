@@ -41,7 +41,6 @@ from fuse.data.utils.collates import CollateDefault
 from fuse.data.utils.samplers import BatchSamplerDefault
 from fuse.dl.models.backbones.backbone_mlp import BackboneMultilayerPerceptron
 from fuse.dl.models.heads.head_global_pooling_classifier import HeadGlobalPoolingClassifier
-from fuse.dl.models.heads.head_generic import HeadGeneric
 from fuse.dl.models.heads.common import ClassifierMLP
 
 from fuse.dl.models import ModelMultiHead
@@ -53,6 +52,7 @@ from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_epsilon import EPSILON
 from utils.autoencoder import Encoder, Decoder, OurEncodingLoss
+from utils.model_head import HeadGeneric
 import torchvision.models as models
 
 ###########################################################################################################
@@ -107,7 +107,7 @@ PATHS = {
 ##########################################
 # GPUs
 ##########################################
-NUM_GPUS = 0 if run_local else 1
+NUM_GPUS = 1
 
 ##########################################
 # Train Common Params
@@ -513,9 +513,8 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 ######################################
 if __name__ == "__main__":
 
-    # uncomment if you want to use specific gpus instead of automatically looking for free ones
-    force_gpus = None  # [0]
-    GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
+    if not run_local:
+        GPU.choose_and_enable_multiple_gpus(NUM_GPUS)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
 

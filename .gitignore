@@ -47,7 +47,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
+*.py, cover
 .hypothesis/
 .pytest_cache/
 
@@ -89,7 +89,7 @@ ipython_config.py
 #   However, in case of collaboration, if having platform-specific dependencies or dependencies
 #   having no cross-platform support, pipenv may install dependencies that don't work, or not
 #   install all needed dependencies.
-#Pipfile.lock
+# Pipfile.lock
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
@@ -132,7 +132,7 @@ dmypy.json
 .vscode/
 
 # Project files
-relevant_tutorial/nn_tutorial.ipynb 
+relevant_tutorial/nn_tutorial.ipynb
 tac/notebook_playground.ipynb
 
 # mac staff
@@ -140,7 +140,7 @@ tac/notebook_playground.ipynb
 
 
 # Workshop related
-raw_data
+# raw_data
 temp_eye_nb.ipynb
 higgs_notebook.ipynb
 _examples
