@@ -146,3 +146,4 @@ higgs_notebook.ipynb
 _examples
 temp_*
 *cached*
+*cache_dir*
