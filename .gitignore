@@ -147,3 +147,5 @@ _examples
 temp_*
 *cached*
 *cache_dir*
+data/raw_data/eps/test.csv
+data/raw_data/eps/train.csv
