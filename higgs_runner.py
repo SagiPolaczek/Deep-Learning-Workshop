@@ -65,7 +65,7 @@ import torchvision.models as models
 # Experiments
 ##########################################
 
-run_local = False  # set 'False' if running server
+run_local = True  # set 'False' if running server
 experiment = "TAC"  # Choose from supported experiments
 
 supported_experiments = [

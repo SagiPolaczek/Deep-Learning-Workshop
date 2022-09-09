@@ -243,7 +243,7 @@ class HIGGS:
 
 if __name__ == "__main__":
     # Main script for testing data pipelines
-    run_local = False
+    run_local = True
     debug = False
 
     # switch to os.environ (?)
