@@ -52,7 +52,7 @@ from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from fuse_epsilon import EPSILON
-from utils.autoencoder import Encoder, Decoder, OurEncodingLoss
+from autoencoder import Encoder, Decoder, OurEncodingLoss
 import torchvision.models as models
 
 ###########################################################################################################
@@ -63,13 +63,14 @@ import torchvision.models as models
 # Experiments
 ##########################################
 run_local = False  # set 'False' if running remote
-experiment = "full"  # Choose from supported experiments
+experiment = "null"  # Choose from supported experiments
 
 supported_experiments = [
     "MLP",  # TODO elaborate
     "full",  # TODO elaborate
     "disjoint",  # TODO elaborate
     "overlap",  # TODO elaborate
+    "null",
 ]
 
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
@@ -95,7 +96,7 @@ else:
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
 
 
-model_dir = os.path.join(ROOT, f"model_dir_{experiment}_weight-1_best_epoch-valid-total-loss")
+model_dir = os.path.join(ROOT, f"model_dir_{experiment}_lsf4")
 cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
@@ -127,7 +128,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 50
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 30
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 
@@ -314,8 +315,11 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     }
 
     if experiment != "MLP":
-        losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=1.0)
+        if experiment == "null":
+            losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
+        else:
+            losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
+            losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=1.0)
 
     # =========================================================================================================
     # Metrics
@@ -331,7 +335,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     validation_metrics = copy.deepcopy(train_metrics)  # use the same metrics in validation as well
 
-    best_epoch_source = dict(monitor="validation.losses.total_loss", mode="min")
+    best_epoch_source = dict(monitor="validation.metrics.auc.macro_avg", mode="max")
 
     # =====================================================================================
     #  Train - using PyTorch Lightning

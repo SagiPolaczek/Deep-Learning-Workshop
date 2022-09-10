@@ -127,7 +127,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 15
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 50
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 
@@ -150,7 +150,7 @@ def create_model(experiment: str) -> torch.nn.Module:
     if experiment == "MLP":
         model = ModelMultiHead(
             conv_inputs=(("data.input.vector", 1),),
-            backbone=BackboneMultilayerPerceptron(mlp_input_size=2000),
+            backbone=BackboneMultilayerPerceptron(layers = (2048, 1024, 1024, 512, 256, 384), mlp_input_size=2000),
             heads=[
                 HeadGlobalPoolingClassifier(
                     head_name="head_cls",
@@ -315,7 +315,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if experiment != "MLP":
         losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=100.0)
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=1.0)
 
     # =========================================================================================================
     # Metrics
@@ -331,7 +331,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     validation_metrics = copy.deepcopy(train_metrics)  # use the same metrics in validation as well
 
-    best_epoch_source = dict(monitor="validation.metrics.auc.macro_avg", mode="max")
+    best_epoch_source = dict(monitor="validation.losses.total_loss", mode="min")
 
     # =====================================================================================
     #  Train - using PyTorch Lightning

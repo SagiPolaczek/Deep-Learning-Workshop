@@ -95,7 +95,7 @@ else:
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
 
 
-model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
+model_dir = os.path.join(ROOT, f"model_dir_{experiment}_weight-1_best_epoch-valid-total-loss")
 cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
@@ -114,7 +114,7 @@ TRAIN_COMMON_PARAMS = {}
 # ============
 # Data
 # ============
-TRAIN_COMMON_PARAMS["data.batch_size"] = 64
+TRAIN_COMMON_PARAMS["data.batch_size"] = 128
 TRAIN_COMMON_PARAMS["data.train_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
@@ -127,7 +127,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 15
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 50
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 
@@ -315,7 +315,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if experiment != "MLP":
         losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=100.0)
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=1.0)
 
     # =========================================================================================================
     # Metrics
@@ -331,7 +331,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     validation_metrics = copy.deepcopy(train_metrics)  # use the same metrics in validation as well
 
-    best_epoch_source = dict(monitor="validation.metrics.auc.macro_avg", mode="max")
+    best_epoch_source = dict(monitor="validation.losses.total_loss", mode="min")
 
     # =====================================================================================
     #  Train - using PyTorch Lightning
@@ -506,7 +506,7 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 if __name__ == "__main__":
     if not run_local:
         # uncomment if you want to use specific gpus instead of automatically looking for free ones
-        force_gpus = None  # [0]
+        force_gpus = [1]
         GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'

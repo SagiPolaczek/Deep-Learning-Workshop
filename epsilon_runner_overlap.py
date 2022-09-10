@@ -95,7 +95,7 @@ else:
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
 
 
-model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
+model_dir = os.path.join(ROOT, f"model_dir_{experiment}_W100_30epoch_bestAUC_lsf4")
 cache_suffix = ""
 PATHS = {
     "model_dir": model_dir,
@@ -127,7 +127,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local 
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 15
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 30
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 
@@ -506,7 +506,7 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
 if __name__ == "__main__":
     if not run_local:
         # uncomment if you want to use specific gpus instead of automatically looking for free ones
-        force_gpus = None  # [0]
+        force_gpus = [2]
         GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
     RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
