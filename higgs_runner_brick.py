@@ -71,7 +71,7 @@ experiment = "TAC_BRICK"  # Choose from supported experiments
 
 supported_experiments = [
     "TAC_BRICK",
-    "TAC_HUBBLE_DEEP_FIELD",
+    "TAC_CAMERA",
     "TAC_COLOR",
 ]
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."

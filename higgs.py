@@ -1,6 +1,7 @@
+from sklearn.datasets import load_iris
 import os
 from zipfile import ZipFile
-from fuse.utils.file_io.file_io import create_dir
+from fuse.utils.file_io.file_io import create_dir, read_dataframe
 import wget
 from typing import Hashable, Optional, Sequence, List, Tuple
 import torch
@@ -18,7 +19,7 @@ from fuse.data.ops.ops_aug_common import OpSample
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
 from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintShapes
+from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintShapes, OpPrintTypes
 from fuseimg.data.ops.ops_debug import OpVis2DImage
 
 from fuse.utils import NDict
@@ -27,39 +28,17 @@ from fuseimg.data.ops.image_loader import OpLoadImage
 from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
 from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
 from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
-
+from sklearn.feature_selection import SelectKBest, f_classif
 
 from ops.ops_sagi import *
 from ops.ops_shaked import *
 import skimage
 
 
-def derive_label(sample_dict: NDict) -> NDict:
-    """
-    Takes the sample's ndict with the labels as key:value and assigns to sample_dict['data.label'] the index of the sample's class.
-    Also delete all the labels' keys from sample_dict.
-
-    for example:
-        If the sample contains {'MEL': 0, 'NV': 1, 'BCC': 0, 'AK': 0, ... }
-        will assign, sample_dict['data.label'] = 1 ('NV's index).
-        Afterwards the sample_dict won't contain the class' names & values.
-    """
-    classes_names = ["s", "b"]
-
-    label = 0
-    for idx, cls_name in enumerate(classes_names):
-        if int(sample_dict[f"data.cls_labels.{cls_name}"]) == 1:
-            label = idx
-
-    sample_dict["data.label"] = label
-    return sample_dict
-
-
 class HIGGS:
     """
     TODO
     """
-
     # bump whenever the static pipeline modified
     DATASET_VER = 0
 
@@ -68,66 +47,69 @@ class HIGGS:
         """
         Gets the samples ids in trainset.
         """
-        if train:
-            samples = list(range(250000))
+        if run_local:
+            if train:
+                samples = [i for i in range(50)]
+            else:
+                samples = [i for i in range(20)]
         else:
-            samples = list(range(550000))
+            if train:
+                samples = [i for i in range(250000)]
+            else:
+                samples = [i for i in range(550000)]
         return samples
 
     @staticmethod
-    def static_pipeline(data: str) -> PipelineDefault:
-        df = pd.read_csv("./data/raw_data/higgs/training.csv")
-        df.drop(["EventId"], axis=1, inplace=True)
-        # TODO: CHANGE THIS APPLY FUNC
-        df["label"] = df["Label"].apply(lambda val: 1 if val == "s" else 0)
-        feature_columns = HIGGS.get_feature_columns()
+    def static_pipeline(data: pd.DataFrame, base_image: np.ndarray
+                        ) -> PipelineDefault:
 
-        base_image = skimage.data.shepp_logan_phantom()  # Temp
-
+        feature_columns = list(data.columns)
+        feature_columns.remove("0")
+        label_column = ["0"]
         static_pipeline = PipelineDefault(
             "static",
             [
-                # Step 1: Decoding sample ID TODO delete (?)
+
                 (OpHIGGSSampleIDDecode(), dict()),
-                # Step 2: load sample's features
+                # Step 1: load sample's features
                 (
                     OpReadDataframe(
-                        data=df,
+                        data=data,
                         key_column=None,
                         key_name="data.sample_id_as_int",
                         columns_to_extract=feature_columns,
                     ),
                     dict(prefix="data.feature"),
                 ),
-                # Step 2.5: delete feature to match k^2
-                # OpFunc
-                # Step 3: load all the features into a list
+                # Step 2: load all the features into a list
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpToNumpy(), dict(key="data.vector", dtype=float)),
-                # Step 4: reshape to kerenl - shuki
+                # Step 3: reshape to kerenl - shuki
                 (OpReshapeVector(), dict(
                     key_in_vector="data.vector", key_out="data.kernel")),
-                # Step 4.1: subract mean
+                # Step 4: subract mean
                 (OpSubtractMean(), dict(key="data.kernel")),
                 # Step 5: Convolve with base image - sagi
                 (OpConvImageKernel(base_image=base_image), dict(
                     key_in_kernel="data.kernel", key_out="data.input.img")),
-                # Load label TODO
+                # Load label
                 (
                     OpReadDataframe(
-                        data=df,
+                        data=data,
                         key_column=None,  # should be default None.. maybe fix in fuse
                         key_name="data.sample_id_as_int",
-                        columns_to_extract=["label"],
+                        columns_to_extract=label_column,
                     ),
                     dict(prefix="data"),
                 ),
+                (OpRenameKey(), dict(key_old="data.0", key_new="data.label")),
                 (OpToInt(), dict(key="data.label")),
                 # DEBUG
                 # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
-                # (OpPrintKeysContent(num_samples=1), dict(keys=None)),
-                # (OpVis2DImage(), dict(key="data.input.img", dtype="float")),
+
+                # (OpVis2DImage(num_samples=1), dict(
+                # key="data.input.img", dtype="float")),
             ],
         )
         return static_pipeline
@@ -150,12 +132,14 @@ class HIGGS:
     @staticmethod
     def dataset(
         cache_path: str,
-        data: Optional[pd.DataFrame] = None,
+        data: pd.DataFrame,
+        base_image: np.ndarray,
         data_path: Optional[str] = None,
         train: bool = False,
         reset_cache: bool = False,
         num_workers: int = 10,
         samples_ids: Optional[Sequence[Hashable]] = None,
+
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -165,21 +149,15 @@ class HIGGS:
         :param append_dyn_pipeline: pipeline steps to append at the end of the suggested dynamic pipeline
         :param sample_ids: dataset including the specified sample_ids or None for all the samples.
         """
-        # Download data if doesn't exist
-        # TODO (?)
 
         assert (data is not None and data_path is None) or (
             data is None and data_path is not None)
 
-        if data_path:
-            # read data
-            data = None  # TODO
-            pass
-
         if samples_ids is None:
             samples_ids = HIGGS.sample_ids(train)
 
-        static_pipeline = HIGGS.static_pipeline(data=data)
+        static_pipeline = HIGGS.static_pipeline(
+            data=data, base_image=base_image)
         dynamic_pipeline = HIGGS.dynamic_pipeline()
 
         cacher = SamplesCacher(
@@ -200,57 +178,16 @@ class HIGGS:
         my_dataset.create()
         return my_dataset
 
-    def get_feature_columns() -> List[str]:
-
-        list_of_columns = [
-            # 'EventId',
-            "DER_mass_MMC",
-            "DER_mass_transverse_met_lep",
-            "DER_mass_vis",
-            "DER_pt_h",
-            "DER_deltaeta_jet_jet",
-            "DER_mass_jet_jet",
-            "DER_prodeta_jet_jet",
-            "DER_deltar_tau_lep",
-            "DER_pt_tot",
-            "DER_sum_pt",
-            "DER_pt_ratio_lep_tau",
-            "DER_met_phi_centrality",
-            "DER_lep_eta_centrality",
-            "PRI_tau_pt",
-            "PRI_tau_eta",
-            "PRI_tau_phi",
-            "PRI_lep_pt",
-            "PRI_lep_eta",
-            "PRI_lep_phi",
-            "PRI_met",
-            "PRI_met_phi",
-            "PRI_met_sumet",
-            "PRI_jet_num",
-            "PRI_jet_leading_pt",
-            "PRI_jet_leading_eta",
-            #  'PRI_jet_leading_phi',
-            #  'PRI_jet_subleading_pt',
-            #  'PRI_jet_subleading_eta',
-            #  'PRI_jet_subleading_phi',
-            #  'PRI_jet_all_pt',
-            #  'Weight',
-            #  'Label'
-        ]
-
-        return list_of_columns
-
 
 if __name__ == "__main__":
     # Main script for testing data pipelines
     run_local = True
-    debug = False
+    debug = True
 
-    # switch to os.environ (?)
     if run_local:
         ROOT = "./_examples/higgs"
         DATA_DIR = ""
-        samples_ids = [i for i in range(1000)]
+        samples_ids = [i for i in range(50)]
     else:
         ROOT = "/tmp/_shaked/_examples/higgs"
         DATA_DIR = ""
@@ -261,23 +198,29 @@ if __name__ == "__main__":
     if debug:
         print("Loading debug data")
         train_data = pd.read_csv(
-            "./data/raw_data/higgs/training.csv"
+            "./data/raw_data/higgs/fs_debug_training_1000.csv"
         )
         test_data = pd.read_csv(
-            "./data/raw_data/higgs/test.csv"
+            "./data/raw_data/higgs/fs_debug_test_200.csv"
         )
         print("Done loading debug data!")
 
     else:
-        print("Downloading data...")
-        train_data, test_data = higgs()
-        print("Done downloading data!")
+        train_data = pd.read_csv(
+            "./data/raw_data/higgs/fs_training.csv"
+        )
+        test_data = pd.read_csv(
+            "./data/raw_data/higgs/fs_test.csv"
+        )
+        print("Done loading data!")
 
     # Testing static pipeline initialization
-    sp = HIGGS.static_pipeline(data=train_data)
+    base_image = skimage.data.brick()
+
+    sp = HIGGS.static_pipeline(data=train_data, base_image=base_image)
 
     dataset = HIGGS.dataset(
-        data=train_data, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids)
+        data=train_data, base_image=base_image, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids)
 
     # all data pipeline will be executed
     sample = dataset[0]

@@ -67,12 +67,12 @@ import torchvision.models as models
 ##########################################
 
 run_local = True  # set 'False' if running server
-experiment = "TAC_CLOCK"  # Choose from supported experiments
+experiment = "TAC_CAMERA"  # Choose from supported experiments
 
 supported_experiments = [
     "TAC_BRICK",
     "TAC_CAMERA",
-    "TAC_CLOCK",
+    "TAC_COLOR",
 ]
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
 
@@ -500,7 +500,7 @@ if __name__ == "__main__":
 
     # Options: 'train', 'infer', 'eval'
     RUNNING_MODES = ["train", "infer", "eval"]
-    base_image = skimage.data.clock()
+    base_image = skimage.data.camera()
     # train
     if "train" in RUNNING_MODES:
         run_train(paths=PATHS, train_common_params=TRAIN_COMMON_PARAMS,

@@ -47,11 +47,11 @@ if __name__ == "__main__":
     # Main script for testing data pipelines
 
     train_data_1 = pd.read_csv(
-        "./data/raw_data/higgs/training_part1.csv")
+        "./data/raw_data/higgs/zip/training_part1.csv")
     train_data_2 = pd.read_csv(
-        "./data/raw_data/higgs/training_part2.csv")
+        "./data/raw_data/higgs/zip/training_part2.csv")
     train_data_3 = pd.read_csv(
-        "./data/raw_data/higgs/training_part3.csv")
+        "./data/raw_data/higgs/zip/training_part3.csv")
 
     train_data = pd.concat(
         [train_data_1, train_data_2, train_data_3], axis=0, ignore_index=True)
