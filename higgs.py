@@ -47,16 +47,10 @@ class HIGGS:
         """
         Gets the samples ids in trainset.
         """
-        if run_local:
-            if train:
-                samples = [i for i in range(50)]
-            else:
-                samples = [i for i in range(20)]
+        if train:
+            samples = [i for i in range(400000)]
         else:
-            if train:
-                samples = [i for i in range(250000)]
-            else:
-                samples = [i for i in range(550000)]
+            samples = [i for i in range(100000)]
         return samples
 
     @staticmethod

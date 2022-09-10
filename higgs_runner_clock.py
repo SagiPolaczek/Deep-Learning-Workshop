@@ -66,7 +66,7 @@ import torchvision.models as models
 # Experiments
 ##########################################
 
-run_local = True  # set 'False' if running server
+run_local = False  # set 'False' if running server
 experiment = "TAC_CLOCK"  # Choose from supported experiments
 
 supported_experiments = [
@@ -90,8 +90,8 @@ if run_local:
     train_data_path = "./data/raw_data/higgs/fs_debug_training_1000.csv"
     eval_data_path = "./data/raw_data/higgs/fs_debug_test_200.csv"
 else:
-    train_data_path = "./fuse_workshop/_examples/higgs/data/train_data.csv"
-    eval_data_path = "./fuse_workshop/_examples/higgs/data/test_data.csv"
+    train_data_path = "./data/raw_data/higgs/fs_training.csv"
+    eval_data_path = "./data/raw_data/higgs/fs_test.csv"
 
 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
@@ -132,7 +132,7 @@ TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(
 # ===============
 # PL Trainer
 # ===============
-TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 15
+TRAIN_COMMON_PARAMS["trainer.num_epochs"] = 1 if run_local else 30
 TRAIN_COMMON_PARAMS["trainer.num_devices"] = NUM_GPUS
 TRAIN_COMMON_PARAMS["trainer.accelerator"] = "cpu" if run_local else "gpu"
 TRAIN_COMMON_PARAMS["trainer.ckpt_path"] = None
@@ -208,7 +208,7 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
         data=TRAIN_DATA,
         base_image=base_image,
         train=True,
-        reset_cache=True,
+        reset_cache=False,
         num_workers=train_common_params["data.train_num_workers"],
         samples_ids=train_common_params["data.samples_ids"],
     )
@@ -400,7 +400,7 @@ def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) ->
         paths["cache_dir_eval"],
         data=INFER_DATA,
         base_image=base_image,
-        reset_cache=True,
+        reset_cache=False,
         train=False,
         samples_ids=infer_common_params["data.samples_ids"],
     )
@@ -415,9 +415,14 @@ def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) ->
 
     model = create_model(experiment=experiment)
 
+    losses = {
+        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
+    }
+
+
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
-        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True
+        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True, losses=losses
     )
 
     # set the prediction keys to extract and dump into file (the ones used be the evaluation function).

@@ -315,7 +315,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     if experiment != "MLP":
         losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
-        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=1.0)
+        losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=100.0)
 
     # =========================================================================================================
     # Metrics
@@ -429,9 +429,13 @@ def run_infer(paths: dict, infer_common_params: dict) -> None:
 
     model = create_model(experiment=experiment)
 
+    losses = {
+        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
+    }
+
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
-        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True
+        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True, losses=losses
     )
 
     # set the prediction keys to extract and dump into file (the ones used be the evaluation function).
@@ -509,7 +513,7 @@ if __name__ == "__main__":
         force_gpus = [0]
         GPU.choose_and_enable_multiple_gpus(NUM_GPUS, force_gpus=force_gpus)
 
-    RUNNING_MODES = ["train", "infer", "eval"]  # Options: 'train', 'infer', 'eval'
+    RUNNING_MODES = ["infer"]  # Options: 'train', 'infer', 'eval'
 
     # train
     if "train" in RUNNING_MODES:

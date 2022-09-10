@@ -47,11 +47,11 @@ if __name__ == "__main__":
     # Main script for testing data pipelines
 
     train_data_1 = pd.read_csv(
-        "./data/raw_data/higgs/zip/training_part1.csv")
+        "./data/raw_data/higgs/training_part1.csv")
     train_data_2 = pd.read_csv(
-        "./data/raw_data/higgs/zip/training_part2.csv")
+        "./data/raw_data/higgs/training_part2.csv")
     train_data_3 = pd.read_csv(
-        "./data/raw_data/higgs/zip/training_part3.csv")
+        "./data/raw_data/higgs/training_part3.csv")
 
     train_data = pd.concat(
         [train_data_1, train_data_2, train_data_3], axis=0, ignore_index=True)
@@ -73,12 +73,12 @@ if __name__ == "__main__":
     train_data = train_data[features_list_with_label].copy()
     test_data = test_data[features_list_with_label].copy()
 
-    train_data.iloc[:50].to_csv(
-        "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_debug_training_1000.csv", index=False)
-    test_data.iloc[:20].to_csv(
-        "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_debug_test_200.csv", index=False)
+    # train_data.iloc[:50].to_csv(
+    #     "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_debug_training_1000.csv", index=False)
+    # test_data.iloc[:20].to_csv(
+    #     "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_debug_test_200.csv", index=False)
 
     train_data.to_csv(
-        "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_training.csv", index=False)
+        "./data/raw_data/higgs/fs_training.csv", index=False)
     test_data.to_csv(
-        "/Users/shakedcaspi/Documents/tau/deep_learning_workshop/Deep-Learning-Workshop/data/raw_data/higgs/fs_test.csv", index=False)
+        "./data/raw_data/higgs/fs_test.csv", index=False)
