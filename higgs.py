@@ -8,6 +8,7 @@ import torch
 from scipy.io import arff
 import pandas as pd
 import numpy as np
+import random
 
 from fuse.data import DatasetDefault
 from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy, OpToInt
@@ -49,8 +50,14 @@ class HIGGS:
         """
         if train:
             samples = [i for i in range(400000)]
+            random.shuffle(samples)
+            samples = samples[:10000]
         else:
             samples = [i for i in range(100000)]
+            random.shuffle(samples)
+            samples = samples[:2500]
+
+
         return samples
 
     @staticmethod

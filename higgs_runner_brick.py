@@ -98,8 +98,8 @@ model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 cache_suffix = "_TAC"
 PATHS = {
     "model_dir": model_dir,
-    "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}"),
-    "cache_dir_eval": os.path.join(ROOT, f"cache_dir_eval{cache_suffix}"),
+    "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}_new_br"),
+    "cache_dir_eval": os.path.join(ROOT, f"cache_dir_eval{cache_suffix}_new_br"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "higgs_split.pkl"),
