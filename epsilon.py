@@ -12,8 +12,7 @@ from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.utils import NDict
 
-from ops.ops_shaked import OpReshapeVector
-from ops.ops_sagi import OpKeysToList, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide
+from ops.custom_fuse_ops import OpKeysToList, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide, OpReshapeVector
 
 
 class OpEPSILONSampleIDDecode(OpBase):

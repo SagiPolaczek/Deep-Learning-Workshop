@@ -1,13 +1,8 @@
-from abc import abstractmethod
 import math
-from sys import prefix
-from typing import Hashable, List, Sequence, Optional, Union
-from fuse.data.utils.sample import get_sample_id
+from typing import List, Union
 from fuse.utils import NDict
 from fuse.data import OpBase
 import numpy as np
-import torch
-import scipy.signal as signal
 
 
 class OpReshapeVector(OpBase):

@@ -50,7 +50,7 @@ from fuse.dl.lightning.pl_funcs import convert_predictions_to_dataframe
 from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
-from fuse_epsilon import EPSILON
+from epsilon import EPSILON
 from utils.autoencoder import Encoder, Decoder, OurEncodingLoss
 from utils.model_head import HeadGeneric
 import torchvision.models as models
