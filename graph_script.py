@@ -1,4 +1,3 @@
-from cProfile import label
 import matplotlib.pyplot as plt
 
 
@@ -240,4 +239,5 @@ def plot_all_vs_all():
 
 if __name__ == "__main__":
     # plot_w1_vs_w100()
-    plot_all_vs_all()
+    # plot_all_vs_all()
+    print("DONE!")

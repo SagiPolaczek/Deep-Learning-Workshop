@@ -1,38 +1,7 @@
-from sklearn.datasets import load_iris
-import os
-from zipfile import ZipFile
-from fuse.utils.file_io.file_io import create_dir, read_dataframe
-import wget
-from typing import Hashable, Optional, Sequence, List, Tuple
-import torch
-from scipy.io import arff
+from typing import List
 import pandas as pd
-import numpy as np
 
-from fuse.data import DatasetDefault
-from fuse.data.ops.ops_cast import OpToTensor, OpToNumpy, OpToInt
-from fuse.data.utils.sample import get_sample_id
-from fuse.data.pipelines.pipeline_default import PipelineDefault
-from fuse.data.ops.op_base import OpBase
-from fuse.data.datasets.caching.samples_cacher import SamplesCacher
-from fuse.data.ops.ops_aug_common import OpSample
-from fuse.data.ops.ops_read import OpReadDataframe
-from fuse.data.ops.ops_common import OpLambda, OpOverrideNaN
-from fuseimg.data.ops.color import OpToRange, OpNormalizeAgainstSelf
-from fuse.data.ops.ops_debug import OpPrintKeys, OpPrintKeysContent, OpPrintShapes, OpPrintTypes
-from fuseimg.data.ops.ops_debug import OpVis2DImage
-
-from fuse.utils import NDict
-
-from fuseimg.data.ops.image_loader import OpLoadImage
-from fuseimg.data.ops.aug.color import OpAugColor, OpAugGaussian
-from fuseimg.data.ops.aug.geometry import OpResizeTo, OpAugAffine2D
-from fuse.utils.rand.param_sampler import Uniform, RandInt, RandBool
 from sklearn.feature_selection import SelectKBest, mutual_info_classif
-
-from ops.ops_sagi import *
-from ops.ops_shaked import *
-import skimage
 
 
 def feature_selection(data: pd.DataFrame, k: int) -> List[str]:
