@@ -66,10 +66,10 @@ run_local = True  # set 'False' if running remote
 experiment = "MLP"  # Choose from supported experiments
 
 supported_experiments = [
-    "MLP",  # TODO elaborate
-    "full",  # TODO elaborate
-    "disjoint",  # TODO elaborate
-    "overlap",  # TODO elaborate
+    "MLP",
+    "full",
+    "disjoint",
+    "overlap",
 ]
 
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
