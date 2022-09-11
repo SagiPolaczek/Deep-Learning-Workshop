@@ -40,12 +40,9 @@ from fuse.eval.metrics.classification.metrics_thresholding_common import MetricA
 from fuse.eval.metrics.classification.metrics_classification_common import MetricAccuracy, MetricAUCROC, MetricROCCurve
 from fuse.data.utils.collates import CollateDefault
 from fuse.data.utils.samplers import BatchSamplerDefault
-from fuse.dl.models.backbones.backbone_mlp import BackboneMultilayerPerceptron
 from fuse.dl.models.heads.head_global_pooling_classifier import HeadGlobalPoolingClassifier
 from fuse.dl.models.backbones.backbone_resnet import BackboneResnet
 from fuse.dl.models.backbones.backbone_inception_resnet_v2 import BackboneInceptionResnetV2
-
-from fuse.dl.models.heads.common import ClassifierMLP
 
 from fuse.dl.models import ModelMultiHead
 from fuse.dl.lightning.pl_module import LightningModuleDefault
@@ -55,8 +52,7 @@ from fuse.dl.losses.loss_default import LossDefault
 from fuse.eval.evaluator import EvaluatorDefault
 
 from higgs import HIGGS
-from utils.autoencoder import Encoder, Decoder, OurEncodingLoss
-import torchvision.models as models
+
 
 ###########################################################################################################
 # Fuse
@@ -67,12 +63,10 @@ import torchvision.models as models
 ##########################################
 
 run_local = False  # set 'False' if running server
-experiment = "TAC_BRICK"  # Choose from supported experiments
+experiment = "TAC_CLOCK"  # Choose from supported experiments
 
 supported_experiments = [
-    "TAC_BRICK",
-    "TAC_CAMERA",
-    "TAC_COLOR",
+    "TAC_CLOCK",
 ]
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
 
@@ -98,8 +92,8 @@ model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 cache_suffix = "_TAC"
 PATHS = {
     "model_dir": model_dir,
-    "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}_new_br"),
-    "cache_dir_eval": os.path.join(ROOT, f"cache_dir_eval{cache_suffix}_new_br"),
+    "cache_dir_train": os.path.join(ROOT, f"cache_dir_train{cache_suffix}_new"),
+    "cache_dir_eval": os.path.join(ROOT, f"cache_dir_eval{cache_suffix}_new"),
     "inference_dir": os.path.join(model_dir, "infer"),
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "higgs_split.pkl"),
@@ -415,9 +409,14 @@ def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) ->
 
     model = create_model(experiment=experiment)
 
+    losses = {
+        "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
+    }
+
+
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
-        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True
+        checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True, losses=losses
     )
 
     # set the prediction keys to extract and dump into file (the ones used be the evaluation function).
@@ -500,7 +499,7 @@ if __name__ == "__main__":
 
     # Options: 'train', 'infer', 'eval'
     RUNNING_MODES = ["train", "infer", "eval"]
-    base_image = skimage.data.brick()
+    base_image = skimage.data.clock()
     # train
     if "train" in RUNNING_MODES:
         run_train(paths=PATHS, train_common_params=TRAIN_COMMON_PARAMS,
