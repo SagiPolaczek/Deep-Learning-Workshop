@@ -48,6 +48,7 @@ class HIGGS:
         """
         Gets the samples ids in trainset.
         """
+        random.seed(42)
         if train:
             samples = [i for i in range(400000)]
             random.shuffle(samples)
