@@ -13,7 +13,7 @@ supported_experiments = [
 assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
 
 
-ROOT = "./_examples/epsilon"
+ROOT = "./_demo"
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 PATHS = {
     "model_dir": model_dir,
