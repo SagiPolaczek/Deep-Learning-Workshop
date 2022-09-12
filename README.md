@@ -1,6 +1,7 @@
 # Deep-Learning-Workshop
 
-Welcome to our workshop github repository!
+### Welcome to our workshop github repository!
+
 
 To run the demo, clone the repository, install the requirements (located in requirements.txt file), and run `python ./demo.py`.
 The demo is running on a small subset of the EPSILON dataset. To run on the entire dataset follow the `epsilon_runner.py` file, for the case of `run_local=False`.
