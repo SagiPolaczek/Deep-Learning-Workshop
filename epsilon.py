@@ -12,7 +12,14 @@ from fuse.data.datasets.caching.samples_cacher import SamplesCacher
 from fuse.data.ops.ops_read import OpReadDataframe
 from fuse.utils import NDict
 
-from ops.custom_fuse_ops import OpKeysToList, OpExpandTensor, OpRenameKey, OpEpsilonRenameLabel, OpPadVecInOneSide, OpReshapeVector
+from ops.custom_fuse_ops import (
+    OpKeysToList,
+    OpExpandTensor,
+    OpRenameKey,
+    OpEpsilonRenameLabel,
+    OpPadVecInOneSide,
+    OpReshapeVector,
+)
 
 
 class OpEPSILONSampleIDDecode(OpBase):
@@ -154,10 +161,7 @@ class EPSILON:
         )
 
         my_dataset = DatasetDefault(
-            sample_ids=samples_ids,
-            static_pipeline=static_pipeline,
-            dynamic_pipeline=dynamic_pipeline,
-            cacher=cacher,
+            sample_ids=samples_ids, static_pipeline=static_pipeline, dynamic_pipeline=dynamic_pipeline, cacher=cacher,
         )
 
         my_dataset.create()

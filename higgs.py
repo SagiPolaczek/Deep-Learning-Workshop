@@ -20,6 +20,7 @@ class HIGGS:
     """
     TODO
     """
+
     # bump whenever the static pipeline modified
     DATASET_VER = 0
 
@@ -38,12 +39,10 @@ class HIGGS:
             random.shuffle(samples)
             samples = samples[:2500]
 
-
         return samples
 
     @staticmethod
-    def static_pipeline(data: pd.DataFrame, base_image: np.ndarray
-                        ) -> PipelineDefault:
+    def static_pipeline(data: pd.DataFrame, base_image: np.ndarray) -> PipelineDefault:
 
         feature_columns = list(data.columns)
         feature_columns.remove("0")
@@ -51,7 +50,6 @@ class HIGGS:
         static_pipeline = PipelineDefault(
             "static",
             [
-
                 (OpHIGGSSampleIDDecode(), dict()),
                 # Step 1: load sample's features
                 (
@@ -67,13 +65,11 @@ class HIGGS:
                 (OpKeysToList(prefix="data.feature"), dict(key_out="data.vector")),
                 (OpToNumpy(), dict(key="data.vector", dtype=float)),
                 # Step 3: reshape to kerenl - shuki
-                (OpReshapeVector(), dict(
-                    key_in_vector="data.vector", key_out="data.kernel")),
+                (OpReshapeVector(), dict(key_in_vector="data.vector", key_out="data.kernel")),
                 # Step 4: subract mean
                 (OpSubtractMean(), dict(key="data.kernel")),
                 # Step 5: Convolve with base image - sagi
-                (OpConvImageKernel(base_image=base_image), dict(
-                    key_in_kernel="data.kernel", key_out="data.input.img")),
+                (OpConvImageKernel(base_image=base_image), dict(key_in_kernel="data.kernel", key_out="data.input.img")),
                 # Load label
                 (
                     OpReadDataframe(
@@ -89,7 +85,6 @@ class HIGGS:
                 # DEBUG
                 # (OpPrintShapes(num_samples=1), dict()),
                 # (OpPrintTypes(num_samples=1), dict()),
-
                 # (OpVis2DImage(num_samples=1), dict(
                 # key="data.input.img", dtype="float")),
             ],
@@ -121,7 +116,6 @@ class HIGGS:
         reset_cache: bool = False,
         num_workers: int = 10,
         samples_ids: Optional[Sequence[Hashable]] = None,
-
     ) -> DatasetDefault:
         """
         Get cached dataset
@@ -132,14 +126,12 @@ class HIGGS:
         :param sample_ids: dataset including the specified sample_ids or None for all the samples.
         """
 
-        assert (data is not None and data_path is None) or (
-            data is None and data_path is not None)
+        assert (data is not None and data_path is None) or (data is None and data_path is not None)
 
         if samples_ids is None:
             samples_ids = HIGGS.sample_ids(train)
 
-        static_pipeline = HIGGS.static_pipeline(
-            data=data, base_image=base_image)
+        static_pipeline = HIGGS.static_pipeline(data=data, base_image=base_image)
         dynamic_pipeline = HIGGS.dynamic_pipeline()
 
         cacher = SamplesCacher(
@@ -151,10 +143,7 @@ class HIGGS:
         )
 
         my_dataset = DatasetDefault(
-            sample_ids=samples_ids,
-            static_pipeline=static_pipeline,
-            dynamic_pipeline=dynamic_pipeline,
-            cacher=cacher,
+            sample_ids=samples_ids, static_pipeline=static_pipeline, dynamic_pipeline=dynamic_pipeline, cacher=cacher,
         )
 
         my_dataset.create()
@@ -179,21 +168,13 @@ if __name__ == "__main__":
 
     if debug:
         print("Loading debug data")
-        train_data = pd.read_csv(
-            "./data/raw_data/higgs/fs_debug_training_1000.csv"
-        )
-        test_data = pd.read_csv(
-            "./data/raw_data/higgs/fs_debug_test_200.csv"
-        )
+        train_data = pd.read_csv("./data/raw_data/higgs/fs_debug_training_1000.csv")
+        test_data = pd.read_csv("./data/raw_data/higgs/fs_debug_test_200.csv")
         print("Done loading debug data!")
 
     else:
-        train_data = pd.read_csv(
-            "./data/raw_data/higgs/fs_training.csv"
-        )
-        test_data = pd.read_csv(
-            "./data/raw_data/higgs/fs_test.csv"
-        )
+        train_data = pd.read_csv("./data/raw_data/higgs/fs_training.csv")
+        test_data = pd.read_csv("./data/raw_data/higgs/fs_test.csv")
         print("Done loading data!")
 
     # Testing static pipeline initialization
@@ -202,7 +183,8 @@ if __name__ == "__main__":
     sp = HIGGS.static_pipeline(data=train_data, base_image=base_image)
 
     dataset = HIGGS.dataset(
-        data=train_data, base_image=base_image, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids)
+        data=train_data, base_image=base_image, cache_path=cache_dir, reset_cache=True, samples_ids=samples_ids
+    )
 
     # all data pipeline will be executed
     sample = dataset[0]

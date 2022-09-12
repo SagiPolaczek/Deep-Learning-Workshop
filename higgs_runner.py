@@ -119,8 +119,9 @@ TRAIN_COMMON_PARAMS["data.cache_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2, 3]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [4]
-TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(
-    50)] if run_local else None  # 'None' implies the use all samples
+TRAIN_COMMON_PARAMS["data.samples_ids"] = (
+    [i for i in range(50)] if run_local else None
+)  # 'None' implies the use all samples
 
 
 # ===============
@@ -173,8 +174,7 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
     # ==============================================================================
     # Logger
     # ==============================================================================
-    fuse_logger_start(
-        output_path=paths["model_dir"], console_verbose_level=logging.INFO)
+    fuse_logger_start(output_path=paths["model_dir"], console_verbose_level=logging.INFO)
 
     if run_local:
         print("Run LOCAL")
@@ -222,7 +222,12 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
         validation_sample_ids += folds[fold]
 
     train_dataset = HIGGS.dataset(
-        paths["cache_dir_train"], data=TRAIN_DATA, base_image=base_image, reset_cache=False, samples_ids=train_sample_ids, train=True
+        paths["cache_dir_train"],
+        data=TRAIN_DATA,
+        base_image=base_image,
+        reset_cache=False,
+        samples_ids=train_sample_ids,
+        train=True,
     )
 
     # Create batch sampler
@@ -251,7 +256,11 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
     print("Validation Data:")
 
     validation_dataset = HIGGS.dataset(
-        paths["cache_dir_train"], data=TRAIN_DATA, base_image=base_image, reset_cache=False, samples_ids=validation_sample_ids
+        paths["cache_dir_train"],
+        data=TRAIN_DATA,
+        base_image=base_image,
+        reset_cache=False,
+        samples_ids=validation_sample_ids,
     )
 
     # Create dataloader
@@ -289,18 +298,15 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
     train_metrics = OrderedDict(
         [
             ("op", MetricApplyThresholds(pred="model.output.head_cls")),
-            ("auc", MetricAUCROC(pred="model.output.head_cls",
-             target="data.label", class_names=class_names)),
-            ("accuracy", MetricAccuracy(
-                pred="results:metrics.op.cls_pred", target="data.label")),
+            ("auc", MetricAUCROC(pred="model.output.head_cls", target="data.label", class_names=class_names)),
+            ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
         ]
     )
 
     # use the same metrics in validation as well
     validation_metrics = copy.deepcopy(train_metrics)
 
-    best_epoch_source = dict(
-        monitor="validation.metrics.auc.macro_avg", mode="max")
+    best_epoch_source = dict(monitor="validation.metrics.auc.macro_avg", mode="max")
 
     # =====================================================================================
     #  Train - using PyTorch Lightning
@@ -310,19 +316,15 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
 
     # create optimizer
     optimizer = optim.Adam(
-        model.parameters(),
-        lr=train_common_params["opt.lr"],
-        weight_decay=train_common_params["opt.weight_decay"],
+        model.parameters(), lr=train_common_params["opt.lr"], weight_decay=train_common_params["opt.weight_decay"],
     )
 
     # create scheduler
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    lr_sch_config = dict(scheduler=lr_scheduler,
-                         monitor="validation.losses.total_loss")
+    lr_sch_config = dict(scheduler=lr_scheduler, monitor="validation.losses.total_loss")
 
     # optimizier and lr sch - see pl.LightningModule.configure_optimizers return value for all options
-    optimizers_and_lr_schs = dict(
-        optimizer=optimizer, lr_scheduler=lr_sch_config)
+    optimizers_and_lr_schs = dict(optimizer=optimizer, lr_scheduler=lr_sch_config)
 
     # create instance of PL module - FuseMedML generic version
     pl_module = LightningModuleDefault(
@@ -346,8 +348,7 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
 
     # train
     pl_trainer.fit(
-        pl_module, train_dataloader, validation_dataloader, ckpt_path=train_common_params[
-            "trainer.ckpt_path"]
+        pl_module, train_dataloader, validation_dataloader, ckpt_path=train_common_params["trainer.ckpt_path"]
     )
 
     print("Fuse Train: Done")
@@ -359,12 +360,10 @@ def run_train(paths: dict, train_common_params: dict, base_image: np.ndarray) ->
 INFER_COMMON_PARAMS = {}
 INFER_COMMON_PARAMS["data.num_workers"] = TRAIN_COMMON_PARAMS["data.train_num_workers"]
 INFER_COMMON_PARAMS["data.batch_size"] = TRAIN_COMMON_PARAMS["data.batch_size"]
-INFER_COMMON_PARAMS["infer_filename"] = os.path.join(
-    PATHS["inference_dir"], "validation_set_infer.pickle")
+INFER_COMMON_PARAMS["infer_filename"] = os.path.join(PATHS["inference_dir"], "validation_set_infer.pickle")
 # Fuse TIP: possible values are 'best', 'last' or epoch_index.
 INFER_COMMON_PARAMS["checkpoint"] = "best_epoch.ckpt"
-INFER_COMMON_PARAMS["data.samples_ids"] = [
-    i for i in range(20)] if run_local else None
+INFER_COMMON_PARAMS["data.samples_ids"] = [i for i in range(20)] if run_local else None
 INFER_COMMON_PARAMS["trainer.num_devices"] = TRAIN_COMMON_PARAMS["trainer.num_devices"]
 INFER_COMMON_PARAMS["trainer.accelerator"] = TRAIN_COMMON_PARAMS["trainer.accelerator"]
 
@@ -376,12 +375,10 @@ INFER_COMMON_PARAMS["trainer.accelerator"] = TRAIN_COMMON_PARAMS["trainer.accele
 def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) -> None:
     create_dir(paths["inference_dir"])
     infer_file = INFER_COMMON_PARAMS["infer_filename"]
-    checkpoint_file = os.path.join(
-        paths["model_dir"], infer_common_params["checkpoint"])
+    checkpoint_file = os.path.join(paths["model_dir"], infer_common_params["checkpoint"])
 
     # Logger
-    fuse_logger_start(
-        output_path=paths["inference_dir"], console_verbose_level=logging.INFO)
+    fuse_logger_start(output_path=paths["inference_dir"], console_verbose_level=logging.INFO)
     print("Fuse Inference")
     print(f"infer_filename={infer_file}")
 
@@ -413,7 +410,6 @@ def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) ->
         "cls_loss": LossDefault(pred="model.logits.head_cls", target="data.label", callable=F.cross_entropy, weight=1.0)
     }
 
-
     # load python lightning module
     pl_module = LightningModuleDefault.load_from_checkpoint(
         checkpoint_file, model_dir=paths["model_dir"], model=model, map_location="cpu", strict=True, losses=losses
@@ -429,8 +425,7 @@ def run_infer(paths: dict, infer_common_params: dict, base_image: np.ndarray) ->
         devices=infer_common_params["trainer.num_devices"],
         auto_select_gpus=True,
     )
-    predictions = pl_trainer.predict(
-        pl_module, infer_dataloader, return_predictions=True)
+    predictions = pl_trainer.predict(pl_module, infer_dataloader, return_predictions=True)
 
     # convert list of batch outputs into a dataframe
     infer_df = convert_predictions_to_dataframe(predictions)
@@ -460,15 +455,13 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
             # will apply argmax
             ("op", MetricApplyThresholds(pred="model.output.head_cls")),
             ("auc", MetricAUCROC(pred="model.output.head_cls", target="data.label")),
-            ("accuracy", MetricAccuracy(
-                pred="results:metrics.op.cls_pred", target="data.label")),
+            ("accuracy", MetricAccuracy(pred="results:metrics.op.cls_pred", target="data.label")),
             (
                 "roc",
                 MetricROCCurve(
                     pred="model.output.head_cls",
                     target="data.label",
-                    output_filename=os.path.join(
-                        paths["inference_dir"], "roc_curve.png"),
+                    output_filename=os.path.join(paths["inference_dir"], "roc_curve.png"),
                 ),
             ),
         ]
@@ -478,12 +471,7 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
     evaluator = EvaluatorDefault()
 
     # run
-    results = evaluator.eval(
-        ids=None,
-        data=infer_file,
-        metrics=metrics,
-        output_dir=paths["eval_dir"],
-    )
+    results = evaluator.eval(ids=None, data=infer_file, metrics=metrics, output_dir=paths["eval_dir"],)
 
     print("Fuse Eval: Done")
     return results
@@ -502,13 +490,11 @@ if __name__ == "__main__":
     base_image = skimage.data.clock()
     # train
     if "train" in RUNNING_MODES:
-        run_train(paths=PATHS, train_common_params=TRAIN_COMMON_PARAMS,
-                  base_image=base_image)
+        run_train(paths=PATHS, train_common_params=TRAIN_COMMON_PARAMS, base_image=base_image)
 
     # infer
     if "infer" in RUNNING_MODES:
-        run_infer(paths=PATHS, infer_common_params=INFER_COMMON_PARAMS,
-                  base_image=base_image)
+        run_infer(paths=PATHS, infer_common_params=INFER_COMMON_PARAMS, base_image=base_image)
 
     # eval
     if "eval" in RUNNING_MODES:

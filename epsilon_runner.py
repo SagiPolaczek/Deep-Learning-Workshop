@@ -86,8 +86,8 @@ debug = FuseDebug(mode)
 ##########################################
 ROOT = "./_examples/epsilon"
 if run_local:
-    train_data_path = "./DLW/data/raw_data/eps/train_debug_1000.csv"
-    eval_data_path = "./DLW/data/raw_data/eps/test_debug_200.csv"
+    train_data_path = "./data/raw_data/eps/train_debug_1000.csv"
+    eval_data_path = "./data/raw_data/eps/test_debug_200.csv"
 else:
     train_data_path = "./fuse_workshop/_examples/epsilon/data/train_data.csv"
     eval_data_path = "./fuse_workshop/_examples/epsilon/data/test_data.csv"
@@ -122,7 +122,9 @@ TRAIN_COMMON_PARAMS["data.validation_num_workers"] = 10
 TRAIN_COMMON_PARAMS["data.num_folds"] = 5
 TRAIN_COMMON_PARAMS["data.train_folds"] = [0, 1, 2, 3]
 TRAIN_COMMON_PARAMS["data.validation_folds"] = [4]
-TRAIN_COMMON_PARAMS["data.samples_ids"] = [i for i in range(1000)] if run_local else None  # 'None' implies the use all samples
+TRAIN_COMMON_PARAMS["data.samples_ids"] = (
+    [i for i in range(1000)] if run_local else None
+)  # 'None' implies the use all samples
 
 # ===============
 # PL Trainer
@@ -311,7 +313,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # ==========================================================================================================================================
     #   Loss
-    #   
+    #
     #   For the MLP experiment we use solely the CE loss function on the prediction-label (classification)
     #   For the other experiments that envolve the autoencoding, we add two losses:
     #       1. ae_loss -> a MSE loss on the autoencoder
@@ -322,7 +324,9 @@ def run_train(paths: dict, train_common_params: dict) -> None:
     }
 
     if experiment != "MLP":
-        losses["ae_loss"] = LossDefault(pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0)
+        losses["ae_loss"] = LossDefault(
+            pred="model.head_decoder", target="data.input.sqr_vector", callable=F.mse_loss, weight=1.0
+        )
         losses["encoding_loss"] = OurEncodingLoss(key_encoding="data.encoding", mode=experiment, weight=100.0)
 
     # =========================================================================================================
@@ -349,9 +353,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
 
     # create optimizer
     optimizer = optim.Adam(
-        model.parameters(),
-        lr=train_common_params["opt.lr"],
-        weight_decay=train_common_params["opt.weight_decay"],
+        model.parameters(), lr=train_common_params["opt.lr"], weight_decay=train_common_params["opt.weight_decay"],
     )
 
     # create scheduler
@@ -497,12 +499,7 @@ def run_eval(paths: dict, eval_common_params: dict) -> None:
     evaluator = EvaluatorDefault()
 
     # run
-    results = evaluator.eval(
-        ids=None,
-        data=infer_file,
-        metrics=metrics,
-        output_dir=paths["eval_dir"],
-    )
+    results = evaluator.eval(ids=None, data=infer_file, metrics=metrics, output_dir=paths["eval_dir"],)
 
     print("Fuse Eval: Done")
     return results

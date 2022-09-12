@@ -7,7 +7,6 @@ import scipy.signal as signal
 import torch
 
 
-
 class OpReshapeVector(OpBase):
     """
     Reshape 1d vector with len k^2 to a 2d array with dims kxk
