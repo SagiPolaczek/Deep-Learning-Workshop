@@ -243,7 +243,7 @@ def run_train(paths: dict, train_common_params: dict) -> None:
         paths["cache_dir_train"],
         data=TRAIN_DATA,
         train=True,
-        reset_cache=False,
+        reset_cache=True,
         num_workers=train_common_params["data.train_num_workers"],
         samples_ids=train_common_params["data.samples_ids"],
     )
