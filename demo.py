@@ -1,5 +1,17 @@
 from epsilon_runner import *
 
+"""
+
+----------------------------
+If you wish to 'play' with the demo/runner, please change the following values in the 'epsilon_runner.py' source file.
+For changes in the hyper parameters consider changing: TRAIN_COMMON_PARAMS, INFER_COMMON_PARAMS, EVAL_COMMON_PARAMS.
+
+For further modifications please check "fuse-med-ml" documentation and source code at: https://github.com/BiomedSciAI/fuse-med-ml,
+or contact us.
+
+----------------------------
+
+
 
 experiment = "full"  # Choose from supported experiments
 
@@ -10,10 +22,9 @@ supported_experiments = [
     "overlap",
 ]
 
-assert experiment in supported_experiments, f"runner doesn't support experiment ({experiment})."
+# Set you paths
 
-
-ROOT = "./_demo"
+ROOT = "./_examples/epsilon" 
 model_dir = os.path.join(ROOT, f"model_dir_{experiment}")
 PATHS = {
     "model_dir": model_dir,
@@ -23,6 +34,8 @@ PATHS = {
     "eval_dir": os.path.join(model_dir, "eval"),
     "data_split_filename": os.path.join(ROOT, "eps_split.pkl"),
 }
+
+"""
 
 
 if __name__ == "__main__":
